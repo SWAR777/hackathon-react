@@ -7,8 +7,12 @@
 body {
   font-family: 'Arial', sans-serif;
   min-height: 100vh;
-  background: linear-gradient(160deg, #020d06 0%, #041a0e 40%, #020d06 100%);
+  background: linear-gradient(160deg, #020d06 0%, #041a0e 50%, #020d06 100%);
   overflow-x: hidden;
+}
+
+.leaflet-container {
+  background: #0a1628 !important;
 }
 
 ::-webkit-scrollbar { width: 5px; }
