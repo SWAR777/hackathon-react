@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, Suspense } from "react"
-import { motion, AnimatePresence, useScroll, useTransform } from "framer-motion"
+import { motion, AnimatePresence, useScroll, useTransform, useInView } from "framer-motion"
 import { Canvas, useFrame } from "@react-three/fiber"
 import { Sphere, useTexture, Stars, OrbitControls } from "@react-three/drei"
 import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet"
