@@ -4,17 +4,37 @@
   box-sizing: border-box;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
-  font-family: 'Arial', sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont,
+    'SF Pro Display', 'Segoe UI', Arial, sans-serif;
   min-height: 100vh;
-  background: linear-gradient(160deg, #020d06 0%, #041a0e 50%, #020d06 100%);
+  background: #020d06;
   overflow-x: hidden;
+  color: white;
 }
 
 .leaflet-container {
   background: #0a1628 !important;
 }
 
-::-webkit-scrollbar { width: 5px; }
-::-webkit-scrollbar-track { background: rgba(255,255,255,0.03); }
-::-webkit-scrollbar-thumb { background: rgba(74,222,128,0.3); border-radius: 3px; }
+.leaflet-popup-content-wrapper {
+  background: rgba(10, 20, 15, 0.95) !important;
+  color: white !important;
+  border: 1px solid rgba(255,255,255,0.1) !important;
+  border-radius: 10px !important;
+}
+
+.leaflet-popup-tip {
+  background: rgba(10, 20, 15, 0.95) !important;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb {
+  background: rgba(74,222,128,0.2);
+  border-radius: 2px;
+}
