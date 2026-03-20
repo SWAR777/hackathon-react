@@ -648,54 +648,22 @@ function WorldMapSection() {
 
           {/* ── SVG World Map ── */}
           <div style={{ width: "100%", height: "100%", position: "relative", backgroundColor: "#020d06", overflow: "hidden" }}>
-            <svg viewBox="0 0 1000 500"
-              style={{ position: "absolute", inset: 0, width: "100%", height: "100%", opacity: 0.45 }}
-              preserveAspectRatio="xMidYMid meet">
-              <rect width="1000" height="500" fill="#031408" />
-              {Array.from({ length: 19 }, (_, i) => (
-                <line key={`v${i}`} x1={i * 55.5} y1={0} x2={i * 55.5} y2={500} stroke="rgba(74,222,128,0.07)" strokeWidth={0.5} />
-              ))}
-              {Array.from({ length: 9 }, (_, i) => (
-                <line key={`h${i}`} x1={0} y1={i * 62.5} x2={1000} y2={i * 62.5} stroke="rgba(74,222,128,0.07)" strokeWidth={0.5} />
-              ))}
-              <line x1={0} y1={250} x2={1000} y2={250} stroke="rgba(74,222,128,0.18)" strokeWidth={1} strokeDasharray="6 4" />
-              <line x1={500} y1={0} x2={500} y2={500} stroke="rgba(74,222,128,0.1)" strokeWidth={0.5} strokeDasharray="4 4" />
-              {/* North America */}
-              <path d="M 80,60 L 180,50 L 220,70 L 230,110 L 210,140 L 240,150 L 250,180 L 220,200 L 200,220 L 170,260 L 140,280 L 100,260 L 80,220 L 60,180 L 50,130 L 60,90 Z" fill="#0d4020" stroke="rgba(74,222,128,0.35)" strokeWidth={1} />
-              <path d="M 180,20 L 230,15 L 250,35 L 240,55 L 210,60 L 185,45 Z" fill="#0d4020" stroke="rgba(74,222,128,0.25)" strokeWidth={0.8} />
-              <path d="M 170,260 L 200,265 L 205,280 L 185,295 L 165,285 Z" fill="#0d4020" stroke="rgba(74,222,128,0.25)" strokeWidth={0.8} />
-              {/* South America */}
-              <path d="M 180,295 L 240,285 L 290,300 L 310,340 L 320,380 L 300,430 L 270,450 L 240,440 L 210,410 L 190,370 L 175,330 Z" fill="#0d4020" stroke="rgba(74,222,128,0.35)" strokeWidth={1} />
-              {/* Europe */}
-              <path d="M 420,60 L 490,52 L 530,68 L 535,92 L 512,112 L 488,122 L 458,116 L 428,100 L 415,78 Z" fill="#0d4020" stroke="rgba(74,222,128,0.35)" strokeWidth={1} />
-              <path d="M 450,28 L 482,22 L 502,40 L 490,66 L 462,70 L 444,54 Z" fill="#0d4020" stroke="rgba(74,222,128,0.25)" strokeWidth={0.8} />
-              {/* Africa */}
-              <path d="M 428,128 L 532,118 L 572,140 L 582,182 L 572,232 L 560,282 L 528,342 L 490,392 L 460,402 L 428,380 L 398,320 L 388,258 L 398,198 L 414,158 Z" fill="#0d4020" stroke="rgba(74,222,128,0.35)" strokeWidth={1} />
-              {/* Middle East */}
-              <path d="M 532,118 L 602,108 L 632,130 L 620,162 L 578,182 L 544,164 Z" fill="#0d4020" stroke="rgba(74,222,128,0.25)" strokeWidth={0.8} />
-              {/* Russia */}
-              <path d="M 510,28 L 700,18 L 855,32 L 872,68 L 820,98 L 758,108 L 678,104 L 598,108 L 538,94 L 510,68 Z" fill="#0d4020" stroke="rgba(74,222,128,0.35)" strokeWidth={1} />
-              {/* South Asia */}
-              <path d="M 598,108 L 702,104 L 732,130 L 722,172 L 692,202 L 660,212 L 630,196 L 610,166 L 598,134 Z" fill="#0d4020" stroke="rgba(74,222,128,0.35)" strokeWidth={1} />
-              {/* Southeast Asia */}
-              <path d="M 722,138 L 792,128 L 822,155 L 812,186 L 780,202 L 750,192 L 724,170 Z" fill="#0d4020" stroke="rgba(74,222,128,0.25)" strokeWidth={0.8} />
-              {/* China / East Asia */}
-              <path d="M 700,78 L 802,68 L 852,90 L 862,122 L 830,152 L 792,162 L 740,156 L 710,140 L 695,110 Z" fill="#0d4020" stroke="rgba(74,222,128,0.35)" strokeWidth={1} />
-              {/* Japan */}
-              <path d="M 845,83 L 866,78 L 876,96 L 864,108 L 847,102 Z" fill="#0d4020" stroke="rgba(74,222,128,0.2)" strokeWidth={0.8} />
-              {/* Australia */}
-              <path d="M 758,308 L 872,298 L 922,328 L 932,378 L 900,422 L 840,432 L 778,412 L 744,370 L 747,330 Z" fill="#0d4020" stroke="rgba(74,222,128,0.35)" strokeWidth={1} />
-              {/* New Zealand */}
-              <path d="M 928,398 L 950,388 L 956,410 L 940,422 Z" fill="#0d4020" stroke="rgba(74,222,128,0.2)" strokeWidth={0.8} />
-              {/* UK */}
-              <path d="M 415,55 L 432,50 L 438,62 L 428,70 L 415,65 Z" fill="#0d4020" stroke="rgba(74,222,128,0.2)" strokeWidth={0.7} />
-            </svg>
-
-            {/* Dark overlay for contrast */}
-        
-
+            <img
+              src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/WorldMap-A_non-Frame.png/1280px-WorldMap-A_non-Frame.png"
+              alt="world map"
+              style={{
+                position: "absolute",
+                inset: 0,
+                width: "100%",
+                height: "100%",
+                objectFit: "fill",
+                opacity: 0.25,
+                filter: "sepia(1) hue-rotate(80deg) saturate(2) brightness(0.6)",
+                mixBlendMode: "screen"
+              }}
+            />
             {/* GLOBAL RADAR watermark */}
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.7, pointerEvents: "none", userSelect: "none", zIndex: 2 }}>
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.03, pointerEvents: "none", userSelect: "none", zIndex: 2 }}>
               <span style={{ fontSize: "52px", fontWeight: "bold", color: "#4ade80", letterSpacing: "10px" }}>GLOBAL RADAR</span>
             </div>
 
