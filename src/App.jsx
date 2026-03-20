@@ -649,16 +649,16 @@ function WorldMapSection() {
           {/* ── SVG World Map ── */}
           <div style={{ width: "100%", height: "100%", position: "relative", backgroundColor: "#020d06", overflow: "hidden" }}>
             <img
-              src="https://upload.wikimedia.org/wikipedia/commons/thumb/2/2a/WorldMap-A_non-Frame.png/1280px-WorldMap-A_non-Frame.png"
-              alt="world map"
+              src="https://www.freeworldmaps.net/wp-content/uploads/world-map.jpg"
+              alt=""
               style={{
                 position: "absolute",
                 inset: 0,
                 width: "100%",
                 height: "100%",
                 objectFit: "fill",
-                opacity: 0.25,
-                filter: "sepia(1) hue-rotate(80deg) saturate(2) brightness(0.6)",
+                opacity: 0.2,
+                filter: "sepia(1) hue-rotate(80deg) saturate(3) brightness(0.5)",
                 mixBlendMode: "screen"
               }}
             />
