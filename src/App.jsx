@@ -1,17 +1,18 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, useMemo } from "react"
 import {
   motion, AnimatePresence,
   useScroll, useTransform, useInView, useSpring
 } from "framer-motion"
-import { Canvas, useFrame } from "@react-three/fiber"
-import { Sphere, Stars, OrbitControls } from "@react-three/drei"
+import { Canvas, useFrame, useLoader } from "@react-three/fiber"
+import { Stars, OrbitControls } from "@react-three/drei"
+import { TextureLoader } from "three"
 import {
   RadialBarChart, RadialBar, ResponsiveContainer,
   BarChart, Bar, XAxis, YAxis, Cell
 } from "recharts"
 import * as THREE from "three"
 
-const API_URL = "https://hackathon-practice-w99t.onrender.com"
+const API_URL = "https://YOUR-API-NAME.onrender.com"
 
 // ── Pollution Data ─────────────────────────────────────────
 const POLLUTION_SPOTS = [
@@ -50,178 +51,171 @@ function getMarkerSize(aqi) {
 // ── Global Styles ──────────────────────────────────────────
 const GlobalStyles = () => (
   <style>{`
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
     html { scroll-behavior: smooth; }
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      background-color: #010906;
+      font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", Arial, sans-serif;
+      background: #010906;
       color: white;
       overflow-x: hidden;
     }
-    textarea::placeholder { color: rgba(255,255,255,0.25); }
+    textarea { font-family: inherit; }
+    textarea::placeholder { color: rgba(255,255,255,0.22); }
     ::-webkit-scrollbar { width: 4px; }
     ::-webkit-scrollbar-track { background: #010906; }
     ::-webkit-scrollbar-thumb { background: #15803d; border-radius: 4px; }
   `}</style>
 )
 
-// ── Forest Background ──────────────────────────────────────
+// ── Forest + Aurora Background ─────────────────────────────
 function ForestBackground({ scrollYProgress }) {
-  const rayOpacity = useTransform(scrollYProgress, [0, 0.3, 1], [0.3, 1, 0.5])
-  const raySpread  = useTransform(scrollYProgress, [0, 0.4], [1, 1.8])
-  const rayY       = useTransform(scrollYProgress, [0, 1], ["0%", "30%"])
-  const layer1Y    = useTransform(scrollYProgress, [0, 1], ["0%", "20%"])
-  const layer2Y    = useTransform(scrollYProgress, [0, 1], ["0%", "10%"])
+  // Rays intensify as you scroll — spring makes it smooth
+  const rawOpacity = useTransform(scrollYProgress, [0, 0.25, 0.8], [0.28, 1, 0.45])
+  const rawSpread  = useTransform(scrollYProgress, [0, 0.35], [1, 1.7])
+  const rawRayY    = useTransform(scrollYProgress, [0, 1], [0, 120])
+  const rawLayer1Y = useTransform(scrollYProgress, [0, 1], [0, 80])
+  const rawLayer2Y = useTransform(scrollYProgress, [0, 1], [0, 40])
 
-  const smoothRayOpacity = useSpring(rayOpacity, { stiffness: 60, damping: 20 })
-  const smoothRaySpread  = useSpring(raySpread,  { stiffness: 40, damping: 18 })
+  const rayOpacity = useSpring(rawOpacity, { stiffness: 80,  damping: 25 })
+  const raySpread  = useSpring(rawSpread,  { stiffness: 50,  damping: 20 })
+  const rayY       = useSpring(rawRayY,    { stiffness: 40,  damping: 20 })
+  const layer1Y    = useSpring(rawLayer1Y, { stiffness: 30,  damping: 18 })
+  const layer2Y    = useSpring(rawLayer2Y, { stiffness: 25,  damping: 16 })
+
+  const RAYS = [
+    { left: "5%",  rotate: -13, w: 52,  op: 0.16, delay: 0.0 },
+    { left: "13%", rotate: -7,  w: 32,  op: 0.12, delay: 0.5 },
+    { left: "21%", rotate: -1,  w: 78,  op: 0.20, delay: 0.9 },
+    { left: "30%", rotate:  5,  w: 44,  op: 0.15, delay: 0.2 },
+    { left: "39%", rotate: -4,  w: 92,  op: 0.22, delay: 0.7 },
+    { left: "48%", rotate:  8,  w: 58,  op: 0.18, delay: 1.1 },
+    { left: "57%", rotate: -2,  w: 40,  op: 0.13, delay: 0.4 },
+    { left: "65%", rotate:  6,  w: 72,  op: 0.19, delay: 0.8 },
+    { left: "74%", rotate: -9,  w: 48,  op: 0.14, delay: 0.6 },
+    { left: "83%", rotate:  4,  w: 82,  op: 0.21, delay: 1.0 },
+    { left: "91%", rotate: -5,  w: 36,  op: 0.12, delay: 1.3 },
+  ]
 
   return (
     <div style={{
-      position: "fixed", inset: 0, zIndex: 0,
-      overflow: "hidden", pointerEvents: "none"
+      position: "fixed", inset: 0,
+      zIndex: 0, overflow: "hidden", pointerEvents: "none"
     }}>
       {/* Sky base */}
       <div style={{
         position: "absolute", inset: 0,
-        background: `linear-gradient(
-          180deg,
-          #000805 0%, #011a08 18%, #02200d 35%,
-          #041e0b 55%, #031508 75%, #010906 100%
-        )`
+        background: "linear-gradient(180deg,#000805 0%,#011a08 18%,#02200d 35%,#041e0b 55%,#031508 75%,#010906 100%)"
       }} />
 
       {/* Aurora — green */}
-      <motion.div
-        style={{
-          position: "absolute", top: "-10%", left: "-10%",
-          width: "70%", height: "60%", borderRadius: "50%",
-          background: "radial-gradient(ellipse at center, rgba(0,255,80,0.15) 0%, rgba(0,255,80,0.05) 40%, transparent 70%)"
-        }}
-        animate={{ x: [0, 110, -50, 0], y: [0, 55, -25, 0], scale: [1, 1.25, 0.88, 1], opacity: [0.7, 1, 0.65, 0.7] }}
-        transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
+      <motion.div style={{
+        position: "absolute", top: "-10%", left: "-10%",
+        width: "70%", height: "60%", borderRadius: "50%",
+        background: "radial-gradient(ellipse, rgba(0,255,80,0.16) 0%, rgba(0,255,80,0.05) 45%, transparent 70%)"
+      }}
+        animate={{ x: [0, 100, -45, 0], y: [0, 50, -22, 0], scale: [1, 1.22, 0.9, 1], opacity: [0.7, 1, 0.65, 0.7] }}
+        transition={{ duration: 16, repeat: Infinity, ease: "easeInOut", repeatType: "loop" }}
       />
 
       {/* Aurora — blue */}
-      <motion.div
-        style={{
-          position: "absolute", top: "-15%", right: "-5%",
-          width: "60%", height: "55%", borderRadius: "50%",
-          background: "radial-gradient(ellipse at center, rgba(0,130,255,0.12) 0%, rgba(0,130,255,0.04) 40%, transparent 70%)"
-        }}
-        animate={{ x: [0, -75, 35, 0], y: [0, 65, -35, 0], scale: [1, 0.82, 1.18, 1], opacity: [0.5, 0.9, 0.5, 0.5] }}
-        transition={{ duration: 19, repeat: Infinity, ease: "easeInOut" }}
+      <motion.div style={{
+        position: "absolute", top: "-15%", right: "-5%",
+        width: "58%", height: "52%", borderRadius: "50%",
+        background: "radial-gradient(ellipse, rgba(0,130,255,0.13) 0%, rgba(0,130,255,0.04) 45%, transparent 70%)"
+      }}
+        animate={{ x: [0, -70, 32, 0], y: [0, 60, -32, 0], scale: [1, 0.84, 1.16, 1], opacity: [0.5, 0.88, 0.5, 0.5] }}
+        transition={{ duration: 20, repeat: Infinity, ease: "easeInOut", repeatType: "loop" }}
       />
 
       {/* Aurora — teal */}
-      <motion.div
-        style={{
-          position: "absolute", top: "5%", left: "28%",
-          width: "48%", height: "42%", borderRadius: "50%",
-          background: "radial-gradient(ellipse at center, rgba(0,220,175,0.10) 0%, rgba(0,220,175,0.03) 40%, transparent 70%)"
-        }}
-        animate={{ x: [0, 55, -85, 0], y: [0, -38, 75, 0], opacity: [0.4, 0.88, 0.4, 0.4] }}
-        transition={{ duration: 23, repeat: Infinity, ease: "easeInOut" }}
+      <motion.div style={{
+        position: "absolute", top: "5%", left: "28%",
+        width: "46%", height: "40%", borderRadius: "50%",
+        background: "radial-gradient(ellipse, rgba(0,220,175,0.11) 0%, rgba(0,220,175,0.03) 45%, transparent 70%)"
+      }}
+        animate={{ x: [0, 50, -80, 0], y: [0, -35, 70, 0], opacity: [0.4, 0.85, 0.4, 0.4] }}
+        transition={{ duration: 24, repeat: Infinity, ease: "easeInOut", repeatType: "loop" }}
       />
 
-      {/* Forest photo — back layer */}
+      {/* Forest photo — back parallax layer */}
       <motion.div style={{
         position: "absolute", inset: 0,
-        backgroundImage: `url('https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&q=80')`,
+        backgroundImage: "url('https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&q=80')",
         backgroundSize: "cover", backgroundPosition: "center top",
-        opacity: 0.55, y: layer1Y
+        opacity: 0.58, y: layer1Y, willChange: "transform"
       }} />
 
-      {/* Forest photo — mid layer (darker, blurred) */}
+      {/* Forest photo — mid parallax layer */}
       <motion.div style={{
         position: "absolute", inset: 0,
-        backgroundImage: `url('https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&q=80')`,
-        backgroundSize: "110%", backgroundPosition: "center 20%",
-        opacity: 0.2, filter: "blur(2px) brightness(0.4)",
-        y: layer2Y
+        backgroundImage: "url('https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&q=80')",
+        backgroundSize: "112%", backgroundPosition: "center 25%",
+        opacity: 0.22, filter: "blur(2px) brightness(0.35)",
+        y: layer2Y, willChange: "transform"
       }} />
 
-      {/* Sky-to-dark gradient overlay */}
+      {/* Sky-to-dark overlay */}
       <div style={{
         position: "absolute", inset: 0,
-        background: `linear-gradient(
-          180deg,
-          rgba(0,8,4,0.0)  0%,
-          rgba(0,8,4,0.2)  35%,
-          rgba(0,8,4,0.55) 65%,
-          rgba(1,6,3,0.88) 85%,
-          rgba(1,5,2,0.97) 100%
-        )`
+        background: "linear-gradient(180deg, rgba(0,8,4,0) 0%, rgba(0,8,4,0.18) 32%, rgba(0,8,4,0.52) 62%, rgba(1,6,3,0.87) 84%, rgba(1,5,2,0.97) 100%)"
       }} />
 
       {/* Volumetric light rays */}
       <motion.div style={{
         position: "absolute", inset: 0,
-        opacity: smoothRayOpacity, y: rayY
+        opacity: rayOpacity, y: rayY, willChange: "transform, opacity"
       }}>
-        {[
-          { left: "6%",  rotate: -14, w: 55, baseOpacity: 0.15, delay: 0.0 },
-          { left: "14%", rotate: -7,  w: 35, baseOpacity: 0.12, delay: 0.4 },
-          { left: "22%", rotate: -2,  w: 75, baseOpacity: 0.18, delay: 0.9 },
-          { left: "31%", rotate:  4,  w: 45, baseOpacity: 0.14, delay: 0.2 },
-          { left: "40%", rotate: -5,  w: 90, baseOpacity: 0.20, delay: 0.7 },
-          { left: "50%", rotate:  7,  w: 60, baseOpacity: 0.16, delay: 1.2 },
-          { left: "59%", rotate: -3,  w: 42, baseOpacity: 0.13, delay: 0.5 },
-          { left: "68%", rotate:  9,  w: 70, baseOpacity: 0.17, delay: 1.0 },
-          { left: "77%", rotate: -8,  w: 50, baseOpacity: 0.15, delay: 0.6 },
-          { left: "86%", rotate:  5,  w: 80, baseOpacity: 0.19, delay: 0.8 },
-          { left: "93%", rotate: -6,  w: 38, baseOpacity: 0.12, delay: 1.3 },
-        ].map((ray, i) => (
+        {RAYS.map((ray, i) => (
           <motion.div key={i} style={{
             position: "absolute", top: 0,
             left: ray.left, width: `${ray.w}px`, height: "100vh",
-            background: `linear-gradient(
-              180deg,
-              rgba(200,255,200,${ray.baseOpacity}) 0%,
-              rgba(150,255,160,${ray.baseOpacity * 0.7}) 25%,
-              rgba(100,220,130,${ray.baseOpacity * 0.4}) 55%,
-              rgba(60,180,90,${ray.baseOpacity * 0.15}) 80%,
-              transparent 100%
-            )`,
-            transform: `rotate(${ray.rotate}deg) scaleX(${smoothRaySpread})`,
+            background: `linear-gradient(180deg,
+              rgba(200,255,200,${ray.op})   0%,
+              rgba(150,255,160,${ray.op * 0.68}) 28%,
+              rgba(100,220,130,${ray.op * 0.38}) 58%,
+              rgba(60,180,90,${ray.op * 0.14})  82%,
+              transparent 100%)`,
+            transform: `rotate(${ray.rotate}deg) scaleX(${raySpread})`,
             transformOrigin: "top center",
-            filter: "blur(14px)"
+            filter: "blur(15px)",
+            willChange: "transform"
           }}
-            animate={{ opacity: [ray.baseOpacity, ray.baseOpacity * 1.9, ray.baseOpacity] }}
-            transition={{ duration: 3 + i * 0.35, repeat: Infinity, ease: "easeInOut", delay: ray.delay }}
+            animate={{ opacity: [ray.op, ray.op * 1.85, ray.op] }}
+            transition={{ duration: 3 + i * 0.3, repeat: Infinity, ease: "easeInOut", delay: ray.delay }}
           />
         ))}
       </motion.div>
 
       {/* Ground fog */}
       <div style={{
-        position: "absolute", bottom: 0, left: 0, right: 0, height: "22%",
-        background: `linear-gradient(0deg, rgba(8,30,15,0.95) 0%, rgba(4,18,8,0.6) 45%, transparent 100%)`
+        position: "absolute", bottom: 0, left: 0, right: 0, height: "20%",
+        background: "linear-gradient(0deg, rgba(8,30,15,0.96) 0%, rgba(4,18,8,0.55) 48%, transparent 100%)"
       }} />
 
       {/* Fireflies */}
-      {Array.from({ length: 12 }, (_, i) => (
+      {Array.from({ length: 14 }, (_, i) => (
         <motion.div key={i} style={{
           position: "absolute",
-          bottom: `${8 + (i * 13) % 38}%`,
-          left: `${(i * 17 + 5) % 95}%`,
+          bottom: `${8 + (i * 11) % 36}%`,
+          left: `${(i * 19 + 3) % 94}%`,
           width:  i % 3 === 0 ? "4px" : "2px",
           height: i % 3 === 0 ? "4px" : "2px",
           borderRadius: "50%",
           background:  i % 4 === 0 ? "#ffff88" : "#aaff88",
           boxShadow:   i % 4 === 0
-            ? "0 0 8px #ffff88, 0 0 16px rgba(255,255,136,0.6)"
-            : "0 0 6px #aaff88, 0 0 12px rgba(170,255,136,0.5)"
+            ? "0 0 8px #ffff88, 0 0 18px rgba(255,255,136,0.55)"
+            : "0 0 6px #aaff88, 0 0 12px rgba(170,255,136,0.45)",
+          willChange: "transform, opacity"
         }}
           animate={{
             opacity: [0, 1, 0],
-            x: [0, (i % 2 === 0 ? 1 : -1) * (20 + i % 30)],
-            y: [0, -(10 + i % 25)],
-            scale: [0, 1.4, 0]
+            x: [0, (i % 2 === 0 ? 1 : -1) * (18 + i % 28)],
+            y: [0, -(8 + i % 22)],
+            scale: [0, 1.5, 0]
           }}
           transition={{
-            duration: 1.8 + (i % 4) * 0.7,
-            delay: (i * 0.45) % 7,
+            duration: 1.6 + (i % 4) * 0.65,
+            delay: (i * 0.5) % 8,
             repeat: Infinity, ease: "easeInOut"
           }}
         />
@@ -230,30 +224,25 @@ function ForestBackground({ scrollYProgress }) {
   )
 }
 
-// ── Falling Leaves — zIndex 1, BEHIND all content ──────────
+// ── Falling Leaves — zIndex 1, BEHIND content ──────────────
 const LEAVES = ["🍃", "🌿", "🍀", "🌱"]
 
 function FallingLeaves() {
-  const leaves = Array.from({ length: 8 }, (_, i) => ({
+  const leaves = useMemo(() => Array.from({ length: 8 }, (_, i) => ({
     id: i, emoji: LEAVES[i % LEAVES.length],
-    left: `${4 + i * 12}%`,
-    size: 13 + (i % 4) * 6,
-    duration: 11 + (i % 5) * 4,
-    delay: i * 1.4,
+    left: `${4 + i * 12}%`, size: 13 + (i % 4) * 6,
+    duration: 11 + (i % 5) * 4, delay: i * 1.5,
     opacity: 0.18 + (i % 3) * 0.07
-  }))
+  })), [])
 
   return (
-    <div style={{
-      position: "fixed", inset: 0,
-      pointerEvents: "none", zIndex: 1, overflow: "hidden"
-    }}>
+    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1, overflow: "hidden" }}>
       {leaves.map(leaf => (
         <motion.div key={leaf.id} style={{
-          position: "absolute", left: leaf.left,
-          top: "-60px", fontSize: leaf.size, opacity: leaf.opacity
+          position: "absolute", left: leaf.left, top: "-60px",
+          fontSize: leaf.size, opacity: leaf.opacity, willChange: "transform"
         }}
-          animate={{ y: ["0px", "110vh"], rotate: [0, 360], x: [0, 22, -18, 12, 0] }}
+          animate={{ y: ["0px", "110vh"], rotate: [0, 360], x: [0, 20, -15, 10, 0] }}
           transition={{
             duration: leaf.duration, delay: leaf.delay,
             repeat: Infinity, ease: "linear",
@@ -267,11 +256,11 @@ function FallingLeaves() {
 
 // ── Leaf Sweep ─────────────────────────────────────────────
 function LeafSweep({ onDone }) {
-  const sweepLeaves = Array.from({ length: 28 }, (_, i) => ({
+  const sweepLeaves = useMemo(() => Array.from({ length: 26 }, (_, i) => ({
     id: i, emoji: LEAVES[i % LEAVES.length],
-    top: `${(i * 3.8) % 100}vh`,
-    size: 20 + (i % 5) * 10, delay: i * 0.055
-  }))
+    top: `${(i * 3.9) % 100}vh`,
+    size: 20 + (i % 5) * 10, delay: i * 0.05
+  })), [])
 
   useEffect(() => {
     const t = setTimeout(onDone, 2500)
@@ -287,30 +276,29 @@ function LeafSweep({ onDone }) {
         style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg,#052e16,#14532d)" }}
         initial={{ x: "-100%" }}
         animate={{ x: ["-100%", "0%", "0%", "100%"] }}
-        transition={{ duration: 2.3, times: [0, 0.3, 0.7, 1], ease: "easeInOut" }}
+        transition={{ duration: 2.2, times: [0, 0.28, 0.72, 1], ease: "easeInOut" }}
       />
       {sweepLeaves.map(leaf => (
         <motion.div key={leaf.id} style={{
-          position: "absolute", top: leaf.top,
-          fontSize: leaf.size, left: "-80px"
+          position: "absolute", top: leaf.top, fontSize: leaf.size, left: "-80px"
         }}
           initial={{ x: "-80px" }}
-          animate={{ x: "115vw", rotate: 540 }}
-          transition={{ duration: 1.5, delay: leaf.delay, ease: "easeIn" }}
+          animate={{ x: "115vw", rotate: 520 }}
+          transition={{ duration: 1.4, delay: leaf.delay, ease: "easeIn" }}
         >{leaf.emoji}</motion.div>
       ))}
       <motion.div style={{
-        position: "absolute", inset: 0,
-        display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center", gap: "20px"
+        position: "absolute", inset: 0, display: "flex",
+        flexDirection: "column", alignItems: "center",
+        justifyContent: "center", gap: "20px"
       }}
         initial={{ opacity: 0 }}
         animate={{ opacity: [0, 1, 1, 0] }}
-        transition={{ duration: 2.3, times: [0, 0.2, 0.8, 1] }}
+        transition={{ duration: 2.2, times: [0, 0.18, 0.82, 1] }}
       >
         <motion.div style={{ fontSize: 80 }}
           animate={{ rotate: 360 }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: "linear" }}
+          transition={{ duration: 1.4, repeat: Infinity, ease: "linear" }}
         >🌍</motion.div>
         <p style={{ color: "#4ade80", fontSize: "18px", fontWeight: "bold", letterSpacing: "4px" }}>
           ANALYZING IMPACT...
@@ -320,23 +308,23 @@ function LeafSweep({ onDone }) {
   )
 }
 
-// ── Scroll Reveal — re-triggers every scroll ───────────────
+// ── Scroll Reveal — smooth and fast ───────────────────────
 function Reveal({ children, delay = 0, direction = "up" }) {
   const ref = useRef(null)
-  const inView = useInView(ref, { once: false, margin: "-60px" })
+  const inView = useInView(ref, { once: false, margin: "-50px" })
   const variants = {
     hidden: {
       opacity: 0,
-      y: direction === "up" ? 48 : direction === "down" ? -48 : 0,
-      x: direction === "left" ? 56 : direction === "right" ? -56 : 0,
-      scale: direction === "scale" ? 0.93 : 1
+      y:     direction === "up"    ?  36 : direction === "down"  ? -36 : 0,
+      x:     direction === "left"  ?  40 : direction === "right" ? -40 : 0,
+      scale: direction === "scale" ? 0.95 : 1
     },
     visible: { opacity: 1, y: 0, x: 0, scale: 1 }
   }
   return (
     <motion.div ref={ref} variants={variants} initial="hidden"
       animate={inView ? "visible" : "hidden"}
-      transition={{ duration: 0.9, delay, ease: [0.22, 1, 0.36, 1] }}
+      transition={{ duration: 0.55, delay, ease: [0.25, 0.46, 0.45, 0.94] }}
     >{children}</motion.div>
   )
 }
@@ -353,7 +341,7 @@ function CO2Counter() {
       background: "rgba(255,40,40,0.06)",
       border: "1px solid rgba(255,100,100,0.18)",
       borderRadius: "16px", padding: "18px 24px",
-      backdropFilter: "blur(12px)"
+      backdropFilter: "blur(16px)"
     }}>
       <p style={{ color: "rgba(255,255,255,0.35)", fontSize: "10px", letterSpacing: "2px", marginBottom: "6px" }}>
         CO₂ EMITTED THIS YEAR (TONS)
@@ -371,81 +359,61 @@ function CO2Counter() {
 // ── Speedometer Gauge ──────────────────────────────────────
 function SpeedometerGauge({ value }) {
   const [animated, setAnimated] = useState(0)
-
   useEffect(() => {
     let start = null
     const step = ts => {
       if (!start) start = ts
-      const p = Math.min((ts - start) / 1600, 1)
+      const p = Math.min((ts - start) / 1500, 1)
       setAnimated((1 - Math.pow(1 - p, 3)) * value)
       if (p < 1) requestAnimationFrame(step)
     }
     requestAnimationFrame(step)
   }, [value])
 
-  const size = 220, cx = size / 2, cy = size / 2 + 20
-  const r = 82, startAngle = -210, endAngle = 30
-  const totalAngle = endAngle - startAngle
+  const size = 220, cx = 110, cy = 130
+  const r = 82, startAngle = -210, endAngle = 30, totalAngle = 240
 
-  const polarToXY = (angle, radius) => ({
+  const toXY = (angle, radius) => ({
     x: cx + radius * Math.cos((angle - 90) * Math.PI / 180),
     y: cy + radius * Math.sin((angle - 90) * Math.PI / 180)
   })
 
-  const arcPath = (r, start, end, color, sw = 10) => {
-    const s = polarToXY(start, r)
-    const e = polarToXY(end, r)
-    const large = (end - start) > 180 ? 1 : 0
-    return (
-      <path
-        d={`M ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y}`}
-        fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round"
-      />
-    )
+  const arc = (r, a1, a2, color, sw = 10) => {
+    const s = toXY(a1, r), e = toXY(a2, r)
+    return <path d={`M${s.x} ${s.y} A${r} ${r} 0 ${a2 - a1 > 180 ? 1 : 0} 1 ${e.x} ${e.y}`}
+      fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round" />
   }
 
-  const needle = polarToXY(startAngle + totalAngle * animated, r - 10)
-  const zones = [
-    { start: -210, end: -150, color: "#ff2222" },
-    { start: -150, end: -90,  color: "#ff7700" },
-    { start: -90,  end: -30,  color: "#ffdd00" },
-    { start: -30,  end: 30,   color: "#22cc44" },
+  const needle = toXY(startAngle + totalAngle * animated, r - 12)
+  const zones  = [
+    { a1: -210, a2: -150, color: "#ff2222" },
+    { a1: -150, a2: -90,  color: "#ff7700" },
+    { a1: -90,  a2: -30,  color: "#ffdd00" },
+    { a1: -30,  a2:  30,  color: "#22cc44" },
   ]
-
-  const label = animated > 0.75 ? "Excellent"
-    : animated > 0.5  ? "Good"
-    : animated > 0.25 ? "Moderate" : "Poor"
-
-  const labelColor = animated > 0.75 ? "#4ade80"
-    : animated > 0.5  ? "#86efac"
-    : animated > 0.25 ? "#ffdd00" : "#ff6b6b"
+  const label      = animated > 0.75 ? "Excellent" : animated > 0.5 ? "Good" : animated > 0.25 ? "Moderate" : "Poor"
+  const labelColor = animated > 0.75 ? "#4ade80"   : animated > 0.5 ? "#86efac" : animated > 0.25 ? "#ffdd00" : "#ff6b6b"
 
   return (
     <div style={{ textAlign: "center" }}>
       <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "10px", letterSpacing: "2px", marginBottom: "8px" }}>
         ECO IMPACT SCORE
       </p>
-      <svg width={size} height={size * 0.75} viewBox={`0 0 ${size} ${size * 0.75}`}>
-        {arcPath(r, startAngle, endAngle, "rgba(255,255,255,0.06)", 14)}
-        {zones.map((z, i) => <g key={i}>{arcPath(r, z.start, z.end, z.color + "55", 14)}</g>)}
-        {arcPath(r, startAngle, startAngle + totalAngle * animated, labelColor, 14)}
+      <svg width={size} height={170} viewBox={`0 0 ${size} 170`}>
+        {arc(r, startAngle, endAngle, "rgba(255,255,255,0.06)", 14)}
+        {zones.map((z, i) => <g key={i}>{arc(r, z.a1, z.a2, z.color + "55", 14)}</g>)}
+        {arc(r, startAngle, startAngle + totalAngle * animated, labelColor, 14)}
         {Array.from({ length: 11 }, (_, i) => {
-          const outer = polarToXY(startAngle + (totalAngle / 10) * i, r + 18)
-          const inner = polarToXY(startAngle + (totalAngle / 10) * i, r + 10)
-          return (
-            <line key={i}
-              x1={outer.x} y1={outer.y} x2={inner.x} y2={inner.y}
-              stroke="rgba(255,255,255,0.2)" strokeWidth={i % 5 === 0 ? 2 : 1}
-            />
-          )
+          const a = startAngle + (totalAngle / 10) * i
+          const o = toXY(a, r + 18), inn = toXY(a, r + 10)
+          return <line key={i} x1={o.x} y1={o.y} x2={inn.x} y2={inn.y}
+            stroke="rgba(255,255,255,0.2)" strokeWidth={i % 5 === 0 ? 2 : 1} />
         })}
         <line x1={cx} y1={cy} x2={needle.x} y2={needle.y} stroke="white" strokeWidth={2.5} strokeLinecap="round" />
         <circle cx={cx} cy={cy} r={6} fill="white" />
         <circle cx={cx} cy={cy} r={3} fill="#4ade80" />
-        <text x={cx} y={cy + 30} textAnchor="middle" fill={labelColor} fontSize="16" fontWeight="bold" fontFamily="Arial">
-          {label}
-        </text>
-        <text x={cx} y={cy + 48} textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize="11" fontFamily="Arial">
+        <text x={cx} y={cy + 28} textAnchor="middle" fill={labelColor} fontSize="15" fontWeight="bold" fontFamily="Arial">{label}</text>
+        <text x={cx} y={cy + 46} textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize="11" fontFamily="Arial">
           {Math.round(animated * 100)}% eco score
         </text>
       </svg>
@@ -462,17 +430,17 @@ function EcosystemRings({ isEco }) {
     { name: "Biodiversity",  value: isEco ? 68 : 42, color: "#6ee7b7", icon: "🌿" },
   ]
   return (
-    <div style={{ padding: "0 4px" }}>
+    <div>
       <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "10px", letterSpacing: "2px", marginBottom: "14px", textAlign: "center" }}>
         ECOSYSTEM HEALTH LAYERS
       </p>
       {layers.map((layer, i) => (
         <motion.div key={i} style={{ marginBottom: "12px" }}
-          initial={{ opacity: 0, x: -20 }}
+          initial={{ opacity: 0, x: -16 }}
           animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: 0.4 + i * 0.12, duration: 0.6 }}
+          transition={{ delay: 0.3 + i * 0.1, duration: 0.4 }}
         >
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "5px" }}>
             <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px" }}>{layer.icon} {layer.name}</span>
             <span style={{ color: layer.color, fontSize: "12px", fontWeight: "bold" }}>{layer.value}%</span>
           </div>
@@ -481,7 +449,7 @@ function EcosystemRings({ isEco }) {
               style={{ height: "100%", background: layer.color, borderRadius: "3px" }}
               initial={{ width: "0%" }}
               animate={{ width: `${layer.value}%` }}
-              transition={{ duration: 1.2, delay: 0.5 + i * 0.12, ease: "easeOut" }}
+              transition={{ duration: 1.0, delay: 0.4 + i * 0.1, ease: "easeOut" }}
             />
           </div>
         </motion.div>
@@ -490,83 +458,115 @@ function EcosystemRings({ isEco }) {
   )
 }
 
-// ── 3D Globe — Hologram style ──────────────────────────────
+// ── Realistic NASA Earth Globe ─────────────────────────────
 function EarthMesh() {
   const earthRef  = useRef()
-  const gridRef   = useRef()
+  const cloudsRef = useRef()
 
-  useFrame(({ clock }) => {
-    const t = clock.getElapsedTime()
-    if (earthRef.current) earthRef.current.rotation.y  = t * 0.09
-    if (gridRef.current)  gridRef.current.rotation.y   = t * 0.06
+  // useLoader is synchronous-friendly and avoids Suspense jank
+  const [colorMap, cloudsMap] = useLoader(TextureLoader, [
+    "https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_atmos_2048.jpg",
+    "https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_clouds_1024.png",
+  ])
+
+  // Smooth rotation using delta time — never jerky
+  useFrame((_, delta) => {
+    if (earthRef.current)  earthRef.current.rotation.y  += delta * 0.08
+    if (cloudsRef.current) cloudsRef.current.rotation.y += delta * 0.10
   })
 
   return (
     <group>
-      {/* Outer atmosphere */}
-      <Sphere args={[1.12, 64, 64]}>
-        <meshPhongMaterial color="#4ade80" transparent opacity={0.04} side={THREE.BackSide} />
-      </Sphere>
-      {/* Core */}
-      <Sphere ref={earthRef} args={[1, 64, 64]}>
-        <meshStandardMaterial color="#062210" emissive="#020a05" roughness={0.4} metalness={0.8} />
-      </Sphere>
-      {/* Wireframe grid */}
-      <Sphere ref={gridRef} args={[1.015, 32, 32]}>
-        <meshBasicMaterial color="#4ade80" wireframe transparent opacity={0.15} />
-      </Sphere>
-      {/* Inner glow ring */}
-      <Sphere args={[1.06, 64, 64]}>
-        <meshPhongMaterial color="#22c55e" transparent opacity={0.03} side={THREE.FrontSide} />
-      </Sphere>
+      {/* Atmosphere glow */}
+      <mesh>
+        <sphereGeometry args={[1.08, 48, 48]} />
+        <meshPhongMaterial color="#4488ff" transparent opacity={0.06} side={THREE.BackSide} />
+      </mesh>
+
+      {/* Earth surface */}
+      <mesh ref={earthRef}>
+        <sphereGeometry args={[1, 48, 48]} />
+        <meshPhongMaterial
+          map={colorMap}
+          specular={new THREE.Color(0x222222)}
+          shininess={12}
+        />
+      </mesh>
+
+      {/* Cloud layer */}
+      <mesh ref={cloudsRef}>
+        <sphereGeometry args={[1.012, 48, 48]} />
+        <meshPhongMaterial map={cloudsMap} transparent opacity={0.38} depthWrite={false} />
+      </mesh>
     </group>
   )
 }
 
-function Globe() {
+function GlobeScene() {
   return (
     <Canvas
-      camera={{ position: [0, 0, 2.8], fov: 42 }}
+      camera={{ position: [0, 0, 2.6], fov: 45 }}
       style={{ background: "transparent" }}
-      dpr={[1, 2]}
-      gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
+      dpr={Math.min(window.devicePixelRatio, 1.5)}
+      gl={{
+        alpha: true,
+        antialias: true,
+        powerPreference: "high-performance",
+        stencil: false,
+        depth: true
+      }}
+      frameloop="always"
     >
-      <ambientLight intensity={0.5} />
-      <directionalLight position={[5, 3, 5]} intensity={2.5} color="#4ade80" />
-      <pointLight position={[-5, -3, -5]} intensity={1.5} color="#22c55e" />
-      <pointLight position={[0, 5, 0]} intensity={1.0} color="#86efac" />
-      <Stars radius={100} depth={50} count={1500} factor={3} fade speed={0.4} />
+      <ambientLight intensity={0.35} />
+      <directionalLight position={[5, 3, 5]} intensity={1.9} />
+      <pointLight position={[-4, -2, -4]} intensity={0.25} color="#4466ff" />
+      <Stars radius={90} depth={40} count={1200} factor={3} fade speed={0.3} />
       <EarthMesh />
-      <OrbitControls enableZoom={false} enablePan={false} rotateSpeed={0.35} />
+      <OrbitControls
+        enableZoom={false}
+        enablePan={false}
+        rotateSpeed={0.4}
+        dampingFactor={0.08}
+        enableDamping
+      />
     </Canvas>
   )
 }
 
-// ── Fixed Globe — fades on scroll ─────────────────────────
+// ── Fixed Globe — center right, fades on scroll ────────────
 function FixedGlobe({ scrollYProgress }) {
-  const opacity = useTransform(scrollYProgress, [0, 0.18, 0.32], [1, 0.6, 0])
-  const scale   = useTransform(scrollYProgress, [0, 0.3], [1, 0.75])
-  const yOffset = useTransform(scrollYProgress, [0, 0.3], [0, -50])
+  const rawOpacity = useTransform(scrollYProgress, [0, 0.16, 0.30], [1, 0.65, 0])
+  const rawScale   = useTransform(scrollYProgress, [0, 0.28], [1, 0.78])
+  const rawY       = useTransform(scrollYProgress, [0, 0.28], [0, -40])
+
+  const opacity = useSpring(rawOpacity, { stiffness: 120, damping: 28 })
+  const scale   = useSpring(rawScale,   { stiffness: 100, damping: 26 })
+  const y       = useSpring(rawY,       { stiffness: 100, damping: 26 })
 
   return (
     <motion.div style={{
+      // Correct center-right positioning — no margin hacks
       position: "fixed",
       top: "50%",
-      right: "5%",
-      transform: "translateY(-50%)",
-      width: "40vw", height: "40vw",
-      maxWidth: "500px", maxHeight: "500px",
+      right: "4%",
+      translateY: "-50%",
+      width: "min(42vw, 480px)",
+      height: "min(42vw, 480px)",
       zIndex: 2,
-      opacity, scale, y: yOffset,
-      pointerEvents: "none"
+      opacity, scale, y,
+      pointerEvents: "none",
+      willChange: "transform, opacity"
     }}>
-      <Globe />
-      <motion.p
-        style={{
-          textAlign: "center", color: "rgba(255,255,255,0.18)",
-          fontSize: "11px", letterSpacing: "1px", marginTop: "6px"
-        }}
-        initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5 }}
+      <GlobeScene />
+      <motion.p style={{
+        textAlign: "center",
+        color: "rgba(255,255,255,0.16)",
+        fontSize: "11px", letterSpacing: "1px",
+        marginTop: "6px"
+      }}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        transition={{ delay: 2, duration: 0.6 }}
       >
         Drag to rotate
       </motion.p>
@@ -581,7 +581,7 @@ function AnimatedNumber({ target }) {
     let start = null
     const step = ts => {
       if (!start) start = ts
-      const p = Math.min((ts - start) / 1400, 1)
+      const p = Math.min((ts - start) / 1200, 1)
       setVal(Math.round((1 - Math.pow(1 - p, 3)) * target))
       if (p < 1) requestAnimationFrame(step)
     }
@@ -602,14 +602,14 @@ function ConfidenceChart({ value }) {
         >
           <RadialBar dataKey="value" cornerRadius={8} fill="#4ade80"
             background={{ fill: "rgba(255,255,255,0.04)" }}
-            isAnimationActive animationDuration={1200}
+            isAnimationActive animationDuration={1000}
           />
         </RadialBarChart>
       </ResponsiveContainer>
       <div style={{
-        position: "absolute", inset: 0,
-        display: "flex", flexDirection: "column",
-        alignItems: "center", justifyContent: "center", pointerEvents: "none"
+        position: "absolute", inset: 0, display: "flex",
+        flexDirection: "column", alignItems: "center",
+        justifyContent: "center", pointerEvents: "none"
       }}>
         <span style={{ color: "#4ade80", fontSize: "28px", fontWeight: "bold", lineHeight: 1 }}>
           <AnimatedNumber target={pct} />%
@@ -638,7 +638,7 @@ function KeywordChart({ text }) {
           />
           <YAxis hide domain={[0, 1]} />
           <Bar dataKey="found" radius={[5, 5, 0, 0]}
-            isAnimationActive animationDuration={900} animationBegin={200}
+            isAnimationActive animationDuration={700} animationBegin={150}
           >
             {data.map((e, i) => (
               <Cell key={i} fill={e.found ? "#4ade80" : "rgba(255,255,255,0.06)"} />
@@ -654,13 +654,14 @@ function KeywordChart({ text }) {
 function Spinner() {
   return (
     <motion.div style={{
-      width: 36, height: 36,
+      width: 34, height: 34,
       border: "3px solid rgba(255,255,255,0.06)",
       borderTop: "3px solid #4ade80",
-      borderRadius: "50%", margin: "16px auto"
+      borderRadius: "50%", margin: "16px auto",
+      willChange: "transform"
     }}
       animate={{ rotate: 360 }}
-      transition={{ duration: 0.8, repeat: Infinity, ease: "linear" }}
+      transition={{ duration: 0.75, repeat: Infinity, ease: "linear" }}
     />
   )
 }
@@ -669,16 +670,12 @@ function Spinner() {
 function FrostedCard({ children, style = {} }) {
   return (
     <div style={{
-      background: "rgba(4,18,8,0.75)",
-      backdropFilter: "blur(40px)",
-      WebkitBackdropFilter: "blur(40px)",
-      borderRadius: "24px",
+      background: "rgba(4,18,8,0.78)",
+      backdropFilter: "blur(36px)",
+      WebkitBackdropFilter: "blur(36px)",
+      borderRadius: "20px",
       border: "1px solid rgba(255,255,255,0.07)",
-      boxShadow: `
-        0 8px 40px rgba(0,0,0,0.65),
-        0 1px 0 rgba(255,255,255,0.05) inset,
-        0 0 60px rgba(0,100,40,0.07)
-      `,
+      boxShadow: "0 8px 40px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.05) inset",
       ...style
     }}>
       {children}
@@ -694,13 +691,13 @@ function Navbar() {
       position: "fixed", top: 0, left: 0, right: 0, zIndex: 100,
       display: "flex", alignItems: "center", justifyContent: "space-between",
       padding: "0 40px", height: "56px",
-      background: "rgba(2,10,5,0.7)",
-      backdropFilter: "blur(20px)",
+      background: "rgba(2,10,5,0.72)",
+      backdropFilter: "blur(24px)",
       borderBottom: "1px solid rgba(255,255,255,0.05)"
     }}
       initial={{ y: -56, opacity: 0 }}
       animate={{ y: 0, opacity: 1 }}
-      transition={{ duration: 0.8, ease: "easeOut" }}
+      transition={{ duration: 0.6, ease: "easeOut" }}
     >
       <div style={{ color: "#4ade80", fontWeight: "700", fontSize: "16px" }}>
         🌱 EcoAI
@@ -711,13 +708,12 @@ function Navbar() {
           { label: "Analyzer", id: "analyzer" },
           { label: "Map",      id: "map" }
         ].map(item => (
-          <button key={item.id} onClick={() => scrollTo(item.id)}
-            style={{
-              padding: "7px 16px", background: "transparent",
-              color: "rgba(255,255,255,0.5)", border: "none",
-              borderRadius: "20px", fontSize: "13px", cursor: "pointer",
-              transition: "all 0.2s"
-            }}
+          <button key={item.id} onClick={() => scrollTo(item.id)} style={{
+            padding: "7px 16px", background: "transparent",
+            color: "rgba(255,255,255,0.5)", border: "none",
+            borderRadius: "20px", fontSize: "13px", cursor: "pointer",
+            transition: "color 0.15s, background 0.15s"
+          }}
             onMouseEnter={e => { e.target.style.color = "white"; e.target.style.background = "rgba(255,255,255,0.07)" }}
             onMouseLeave={e => { e.target.style.color = "rgba(255,255,255,0.5)"; e.target.style.background = "transparent" }}
           >{item.label}</button>
@@ -731,21 +727,20 @@ function Navbar() {
 function HeroSection() {
   return (
     <section id="hero" style={{
-      minHeight: "100vh",
-      display: "flex", alignItems: "center",
-      padding: "80px 60px 60px",
-      position: "relative", zIndex: 10
+      minHeight: "100vh", display: "flex", alignItems: "center",
+      padding: "80px 60px 60px", position: "relative", zIndex: 10
     }}>
+      {/* Left — max 50% so globe has room on right */}
       <div style={{ maxWidth: "50%", paddingRight: "40px" }}>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3, duration: 0.8 }}
+          initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.25, duration: 0.55 }}
           style={{ marginBottom: "24px" }}
         >
           <span style={{
             background: "rgba(74,222,128,0.1)",
-            border: "1px solid rgba(74,222,128,0.2)",
+            border: "1px solid rgba(74,222,128,0.22)",
             color: "#4ade80", padding: "6px 16px",
             borderRadius: "20px", fontSize: "11px",
             letterSpacing: "2px", fontWeight: "600"
@@ -755,12 +750,12 @@ function HeroSection() {
         </motion.div>
 
         <motion.h1
-          initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.9 }}
+          initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.38, duration: 0.6 }}
           style={{
-            fontSize: "clamp(36px, 4.5vw, 64px)",
+            fontSize: "clamp(34px, 4.2vw, 62px)",
             fontWeight: "700", lineHeight: 1.1,
-            color: "white", marginBottom: "20px", letterSpacing: "-1.5px"
+            color: "white", marginBottom: "18px", letterSpacing: "-1.5px"
           }}
         >
           Understand Your
@@ -776,11 +771,11 @@ function HeroSection() {
         </motion.h1>
 
         <motion.p
-          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.7, duration: 0.8 }}
+          initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.5, duration: 0.55 }}
           style={{
-            color: "rgba(255,255,255,0.4)", fontSize: "16px",
-            lineHeight: 1.8, marginBottom: "36px", maxWidth: "400px"
+            color: "rgba(255,255,255,0.4)", fontSize: "15px",
+            lineHeight: 1.8, marginBottom: "32px", maxWidth: "390px"
           }}
         >
           Describe any project or activity. Our AI instantly
@@ -789,34 +784,38 @@ function HeroSection() {
         </motion.p>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.9, duration: 0.8 }}
-          style={{ marginBottom: "36px" }}
+          initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.62, duration: 0.55 }}
+          style={{ marginBottom: "32px" }}
         >
           <CO2Counter />
         </motion.div>
 
         <motion.div
-          initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 1.1, duration: 0.8 }}
+          initial={{ opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.74, duration: 0.55 }}
           style={{ display: "flex", gap: "12px" }}
         >
           <motion.button
             onClick={() => document.getElementById("analyzer")?.scrollIntoView({ behavior: "smooth" })}
-            whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+            whileHover={{ scale: 1.03, boxShadow: "0 0 28px rgba(74,222,128,0.38)" }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: "spring", stiffness: 400, damping: 20 }}
             style={{
               padding: "14px 28px",
               background: "linear-gradient(135deg, #15803d, #4ade80)",
               color: "white", border: "none", borderRadius: "14px",
               fontSize: "14px", fontWeight: "600", cursor: "pointer",
-              boxShadow: "0 0 28px rgba(74,222,128,0.3)"
+              boxShadow: "0 0 24px rgba(74,222,128,0.28)"
             }}
           >
             Start Analyzing →
           </motion.button>
           <motion.button
             onClick={() => document.getElementById("map")?.scrollIntoView({ behavior: "smooth" })}
-            whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
+            transition={{ type: "spring", stiffness: 400, damping: 20 }}
             style={{
               padding: "14px 28px",
               background: "rgba(255,255,255,0.06)",
@@ -832,22 +831,22 @@ function HeroSection() {
 
       {/* Scroll indicator */}
       <motion.div style={{
-        position: "absolute", bottom: "32px", left: "50%",
-        transform: "translateX(-50%)", zIndex: 10
+        position: "absolute", bottom: "28px", left: "50%",
+        translateX: "-50%", zIndex: 10
       }}
-        animate={{ y: [0, 8, 0] }}
-        transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+        animate={{ y: [0, 7, 0] }}
+        transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
       >
         <div style={{
-          width: "24px", height: "38px",
-          border: "1px solid rgba(255,255,255,0.18)",
-          borderRadius: "12px",
-          display: "flex", justifyContent: "center", paddingTop: "6px"
+          width: "22px", height: "36px",
+          border: "1px solid rgba(255,255,255,0.16)",
+          borderRadius: "11px", display: "flex",
+          justifyContent: "center", paddingTop: "5px"
         }}>
           <motion.div
-            style={{ width: "3px", height: "8px", background: "#4ade80", borderRadius: "2px" }}
-            animate={{ y: [0, 10, 0], opacity: [1, 0, 1] }}
-            transition={{ duration: 2, repeat: Infinity }}
+            style={{ width: "3px", height: "7px", background: "#4ade80", borderRadius: "2px" }}
+            animate={{ y: [0, 9, 0], opacity: [1, 0, 1] }}
+            transition={{ duration: 1.8, repeat: Infinity }}
           />
         </div>
       </motion.div>
@@ -871,7 +870,7 @@ function AnalyzerSection() {
     setLoadingText("🌿 Analyzing...")
 
     const slowTimer = setTimeout(() => {
-      setLoadingText("Waking up AI servers (may take up to 50s)...")
+      setLoadingText("Waking up AI servers (may take ~50s)...")
     }, 5000)
 
     try {
@@ -899,19 +898,17 @@ function AnalyzerSection() {
       </AnimatePresence>
 
       <section id="analyzer" style={{
-        minHeight: "100vh",
-        display: "flex", flexDirection: "column",
+        minHeight: "100vh", display: "flex", flexDirection: "column",
         alignItems: "center", justifyContent: "center",
-        padding: "120px 24px 80px",
-        position: "relative", zIndex: 10
+        padding: "120px 24px 80px", position: "relative", zIndex: 10
       }}>
         <Reveal>
-          <div style={{ textAlign: "center", marginBottom: "48px" }}>
-            <p style={{ color: "#4ade80", fontSize: "11px", letterSpacing: "3px", marginBottom: "12px" }}>
+          <div style={{ textAlign: "center", marginBottom: "44px" }}>
+            <p style={{ color: "#4ade80", fontSize: "11px", letterSpacing: "3px", marginBottom: "10px" }}>
               AI ANALYSIS
             </p>
             <h2 style={{
-              color: "white", fontSize: "clamp(28px,4vw,48px)",
+              color: "white", fontSize: "clamp(26px,4vw,46px)",
               fontWeight: "700", letterSpacing: "-0.5px"
             }}>
               Analyze Your Impact
@@ -924,11 +921,11 @@ function AnalyzerSection() {
           display: "flex", gap: "20px",
           alignItems: "flex-start", flexWrap: "wrap"
         }}>
-          {/* Left — input card */}
-          <Reveal delay={0.15} direction="left">
-            <FrostedCard style={{ flex: "1", minWidth: "300px", padding: "32px" }}>
-              <div style={{ marginBottom: "20px" }}>
-                <h3 style={{ color: "white", fontSize: "18px", fontWeight: "600", marginBottom: "6px" }}>
+          {/* Input card */}
+          <Reveal delay={0.1} direction="left">
+            <FrostedCard style={{ flex: "1", minWidth: "300px", padding: "30px" }}>
+              <div style={{ marginBottom: "18px" }}>
+                <h3 style={{ color: "white", fontSize: "17px", fontWeight: "600", marginBottom: "5px" }}>
                   🌱 Eco Analyzer
                 </h3>
                 <p style={{ color: "rgba(255,255,255,0.3)", fontSize: "13px" }}>
@@ -942,27 +939,28 @@ function AnalyzerSection() {
                   width: "100%", height: "120px", padding: "14px",
                   background: "rgba(255,255,255,0.04)",
                   border: "1px solid rgba(255,255,255,0.07)",
-                  borderRadius: "14px", color: "white",
+                  borderRadius: "12px", color: "white",
                   fontSize: "14px", resize: "none", outline: "none",
-                  fontFamily: "inherit", lineHeight: "1.7", transition: "border 0.2s"
+                  lineHeight: "1.7", transition: "border 0.15s"
                 }}
-                onFocus={e => e.target.style.borderColor = "rgba(74,222,128,0.35)"}
+                onFocus={e => e.target.style.borderColor = "rgba(74,222,128,0.38)"}
                 onBlur={e  => e.target.style.borderColor = "rgba(255,255,255,0.07)"}
               />
 
               <motion.button onClick={analyze}
                 disabled={loading || !text.trim()}
-                whileHover={!loading && text.trim() ? { scale: 1.02, boxShadow: "0 0 32px rgba(74,222,128,0.4)" } : {}}
+                whileHover={!loading && text.trim() ? { scale: 1.02, boxShadow: "0 0 28px rgba(74,222,128,0.38)" } : {}}
                 whileTap={!loading && text.trim() ? { scale: 0.98 } : {}}
+                transition={{ type: "spring", stiffness: 400, damping: 20 }}
                 style={{
-                  marginTop: "14px", width: "100%", padding: "15px",
+                  marginTop: "12px", width: "100%", padding: "14px",
                   background: loading || !text.trim()
                     ? "rgba(255,255,255,0.05)"
                     : "linear-gradient(135deg, #15803d, #4ade80)",
-                  color: "white", border: "none", borderRadius: "14px",
+                  color: "white", border: "none", borderRadius: "12px",
                   fontSize: "14px", fontWeight: "600",
                   cursor: loading || !text.trim() ? "not-allowed" : "pointer",
-                  boxShadow: loading || !text.trim() ? "none" : "0 0 20px rgba(74,222,128,0.2)"
+                  boxShadow: loading || !text.trim() ? "none" : "0 0 18px rgba(74,222,128,0.2)"
                 }}
               >
                 {loading ? "Analyzing..." : "⚡ Analyze Impact"}
@@ -971,7 +969,7 @@ function AnalyzerSection() {
               <AnimatePresence>
                 {loading && (
                   <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    style={{ textAlign: "center" }}
+                    transition={{ duration: 0.25 }} style={{ textAlign: "center" }}
                   >
                     <Spinner />
                     <p style={{ color: "rgba(255,255,255,0.3)", fontSize: "12px" }}>
@@ -983,23 +981,27 @@ function AnalyzerSection() {
 
               <AnimatePresence>
                 {error && (
-                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  <motion.div
+                    initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                    transition={{ duration: 0.25 }}
                     style={{
-                      marginTop: "14px", padding: "14px",
+                      marginTop: "12px", padding: "13px",
                       background: "rgba(220,38,38,0.09)",
                       border: "1px solid rgba(220,38,38,0.18)",
-                      borderRadius: "12px", color: "#fca5a5", fontSize: "13px"
+                      borderRadius: "11px", color: "#fca5a5", fontSize: "13px"
                     }}
                   >
-                    ⚠️ {error} — Wake Render server first by visiting /health
+                    ⚠️ {error} — Visit /health to wake Render server first
                   </motion.div>
                 )}
               </AnimatePresence>
 
               <AnimatePresence>
                 {result && (
-                  <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                    style={{ marginTop: "20px" }}
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                    transition={{ duration: 0.35 }}
+                    style={{ marginTop: "18px" }}
                   >
                     <p style={{
                       color: "rgba(255,255,255,0.3)", fontSize: "10px",
@@ -1008,7 +1010,6 @@ function AnalyzerSection() {
                       ECO KEYWORDS DETECTED
                     </p>
                     <KeywordChart text={text} />
-
                     <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
                       {[
                         { icon: "⚡", label: "Response", value: result.cached ? "cached" : `${result.response_time_ms}ms` },
@@ -1022,9 +1023,9 @@ function AnalyzerSection() {
                             borderRadius: "10px",
                             border: "1px solid rgba(255,255,255,0.05)"
                           }}
-                          initial={{ opacity: 0, y: 10 }}
+                          initial={{ opacity: 0, y: 8 }}
                           animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: 0.5 + i * 0.1 }}
+                          transition={{ delay: 0.3 + i * 0.08, duration: 0.3 }}
                         >
                           <div style={{ fontSize: "14px" }}>{stat.icon}</div>
                           <div style={{ color: "white", fontSize: "12px", fontWeight: "600", marginTop: "3px" }}>
@@ -1042,50 +1043,46 @@ function AnalyzerSection() {
             </FrostedCard>
           </Reveal>
 
-          {/* Right — graphics cards */}
+          {/* Right — result graphics */}
           <AnimatePresence>
             {result && (
               <motion.div
-                initial={{ opacity: 0, x: 40 }}
+                initial={{ opacity: 0, x: 30 }}
                 animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 40 }}
-                transition={{ duration: 0.7, type: "spring", bounce: 0.2 }}
+                exit={{ opacity: 0, x: 30 }}
+                transition={{ duration: 0.45, type: "spring", stiffness: 200, damping: 24 }}
                 style={{
                   flex: "1", minWidth: "280px",
-                  display: "flex", flexDirection: "column", gap: "16px"
+                  display: "flex", flexDirection: "column", gap: "14px"
                 }}
               >
-                {/* Result badge */}
-                <FrostedCard style={{ padding: "24px", textAlign: "center" }}>
+                <FrostedCard style={{ padding: "22px", textAlign: "center" }}>
                   <motion.div
-                    initial={{ scale: 0.7, opacity: 0 }}
+                    initial={{ scale: 0.75, opacity: 0 }}
                     animate={{ scale: 1, opacity: 1 }}
-                    transition={{ type: "spring", bounce: 0.5 }}
+                    transition={{ type: "spring", stiffness: 280, damping: 20 }}
                   >
-                    <div style={{ fontSize: "48px", marginBottom: "10px" }}>
+                    <div style={{ fontSize: "46px", marginBottom: "8px" }}>
                       {isEco ? "🌍" : "🏭"}
                     </div>
                     <h3 style={{
                       color: isEco ? "#4ade80" : "#fb923c",
-                      fontSize: "20px", fontWeight: "700", margin: 0
+                      fontSize: "19px", fontWeight: "700", margin: 0
                     }}>
                       {isEco ? "✅ Eco Friendly" : "⚠️ Needs Improvement"}
                     </h3>
                   </motion.div>
                 </FrostedCard>
 
-                {/* Speedometer */}
-                <FrostedCard style={{ padding: "20px 24px" }}>
+                <FrostedCard style={{ padding: "18px 22px" }}>
                   <SpeedometerGauge value={result.confidence} />
                 </FrostedCard>
 
-                {/* Ecosystem health */}
-                <FrostedCard style={{ padding: "20px 24px" }}>
+                <FrostedCard style={{ padding: "18px 22px" }}>
                   <EcosystemRings isEco={isEco} />
                 </FrostedCard>
 
-                {/* Confidence ring */}
-                <FrostedCard style={{ padding: "16px 24px" }}>
+                <FrostedCard style={{ padding: "14px 22px" }}>
                   <ConfidenceChart value={result.confidence} />
                 </FrostedCard>
               </motion.div>
@@ -1107,13 +1104,13 @@ function WorldMapSection() {
       position: "relative", zIndex: 10
     }}>
       <Reveal>
-        <div style={{ textAlign: "center", marginBottom: "48px" }}>
-          <p style={{ color: "#4ade80", fontSize: "11px", letterSpacing: "3px", marginBottom: "12px" }}>
+        <div style={{ textAlign: "center", marginBottom: "44px" }}>
+          <p style={{ color: "#4ade80", fontSize: "11px", letterSpacing: "3px", marginBottom: "10px" }}>
             GLOBAL MONITORING
           </p>
           <h2 style={{
-            color: "white", fontSize: "clamp(28px,4vw,48px)",
-            fontWeight: "700", letterSpacing: "-0.5px", marginBottom: "12px"
+            color: "white", fontSize: "clamp(26px,4vw,46px)",
+            fontWeight: "700", letterSpacing: "-0.5px", marginBottom: "10px"
           }}>
             World Air Quality
           </h2>
@@ -1123,10 +1120,10 @@ function WorldMapSection() {
         </div>
       </Reveal>
 
-      <Reveal delay={0.1}>
+      <Reveal delay={0.08}>
         <div style={{
           display: "flex", justifyContent: "center",
-          gap: "20px", flexWrap: "wrap", marginBottom: "28px"
+          gap: "18px", flexWrap: "wrap", marginBottom: "24px"
         }}>
           {[
             { color: "#00cc44", label: "Good" },
@@ -1137,47 +1134,42 @@ function WorldMapSection() {
           ].map((item, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: "7px" }}>
               <div style={{
-                width: 10, height: 10, borderRadius: "50%",
-                background: item.color, boxShadow: `0 0 8px ${item.color}88`
+                width: 9, height: 9, borderRadius: "50%",
+                background: item.color, boxShadow: `0 0 7px ${item.color}88`
               }} />
-              <span style={{ color: "rgba(255,255,255,0.45)", fontSize: "12px" }}>
-                {item.label}
-              </span>
+              <span style={{ color: "rgba(255,255,255,0.45)", fontSize: "12px" }}>{item.label}</span>
             </div>
           ))}
         </div>
       </Reveal>
 
-      {/* Custom hover map */}
-      <Reveal delay={0.2} direction="scale">
-        <FrostedCard style={{ overflow: "hidden", marginBottom: "28px", height: "450px", position: "relative" }}>
+      <Reveal delay={0.16} direction="scale">
+        <FrostedCard style={{ overflow: "hidden", marginBottom: "24px", height: "440px", position: "relative" }}>
           <div style={{
             width: "100%", height: "100%", position: "relative",
-            background: "radial-gradient(ellipse at center, rgba(74,222,128,0.06) 0%, transparent 70%)",
+            background: "radial-gradient(ellipse at center, rgba(74,222,128,0.05) 0%, transparent 70%)",
             backgroundImage: `
-              linear-gradient(to right, rgba(255,255,255,0.025) 1px, transparent 1px),
-              linear-gradient(to bottom, rgba(255,255,255,0.025) 1px, transparent 1px)
+              linear-gradient(to right, rgba(255,255,255,0.022) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(255,255,255,0.022) 1px, transparent 1px)
             `,
             backgroundSize: "4% 8%"
           }}>
-            {/* Radar label */}
+            {/* GLOBAL RADAR watermark */}
             <div style={{
-              position: "absolute", inset: 0,
-              display: "flex", alignItems: "center", justifyContent: "center",
-              opacity: 0.07, pointerEvents: "none"
+              position: "absolute", inset: 0, display: "flex",
+              alignItems: "center", justifyContent: "center",
+              opacity: 0.06, pointerEvents: "none", userSelect: "none"
             }}>
-              <svg width="100%" height="100%" viewBox="0 0 1000 500" preserveAspectRatio="none">
-                <text x="500" y="250" fill="#4ade80" fontSize="60"
-                  textAnchor="middle" dominantBaseline="middle">
-                  GLOBAL RADAR
-                </text>
-              </svg>
+              <span style={{ fontSize: "48px", fontWeight: "bold", color: "#4ade80", letterSpacing: "8px" }}>
+                GLOBAL RADAR
+              </span>
             </div>
 
             {/* City dots */}
             {POLLUTION_SPOTS.map((spot, i) => {
               const top  = `${50 - (spot.lat / 90) * 48}%`
               const left = `${50 + (spot.lng / 180) * 48}%`
+              const isHovered = hoveredSpot === spot
               return (
                 <div key={i}
                   onMouseEnter={() => setHoveredSpot(spot)}
@@ -1188,15 +1180,13 @@ function WorldMapSection() {
                     height: getMarkerSize(spot.aqi),
                     background: getMarkerColor(spot.aqi),
                     borderRadius: "50%",
-                    transform: hoveredSpot === spot
-                      ? "translate(-50%, -50%) scale(1.4)"
-                      : "translate(-50%, -50%) scale(1)",
-                    boxShadow: hoveredSpot === spot
-                      ? `0 0 20px ${getMarkerColor(spot.aqi)}`
-                      : `0 0 10px ${getMarkerColor(spot.aqi)}`,
+                    transform: `translate(-50%, -50%) scale(${isHovered ? 1.5 : 1})`,
+                    boxShadow: isHovered
+                      ? `0 0 22px ${getMarkerColor(spot.aqi)}, 0 0 44px ${getMarkerColor(spot.aqi)}44`
+                      : `0 0 10px ${getMarkerColor(spot.aqi)}88`,
                     cursor: "pointer",
-                    zIndex: hoveredSpot === spot ? 20 : 10,
-                    transition: "all 0.2s ease-out"
+                    zIndex: isHovered ? 20 : 10,
+                    transition: "all 0.18s ease-out"
                   }}
                 />
               )
@@ -1206,26 +1196,25 @@ function WorldMapSection() {
             <AnimatePresence>
               {hoveredSpot && (
                 <motion.div
-                  initial={{ opacity: 0, y: 8, scale: 0.9 }}
+                  initial={{ opacity: 0, y: 6, scale: 0.92 }}
                   animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 8, scale: 0.9 }}
-                  transition={{ duration: 0.15 }}
+                  exit={{ opacity: 0, y: 6, scale: 0.92 }}
+                  transition={{ duration: 0.14 }}
                   style={{
                     position: "absolute",
-                    top: `calc(${50 - (hoveredSpot.lat / 90) * 48}% - 12px)`,
+                    top:  `calc(${50 - (hoveredSpot.lat / 90) * 48}% - 14px)`,
                     left: `${50 + (hoveredSpot.lng / 180) * 48}%`,
                     transform: "translate(-50%, -100%)",
-                    background: "rgba(4,18,8,0.96)",
+                    background: "rgba(4,18,8,0.97)",
                     border: `1px solid ${getMarkerColor(hoveredSpot.aqi)}`,
-                    padding: "10px 14px",
-                    borderRadius: "10px", color: "white",
-                    fontSize: "12px", zIndex: 30,
+                    padding: "10px 14px", borderRadius: "10px",
+                    color: "white", fontSize: "12px", zIndex: 30,
                     pointerEvents: "none", whiteSpace: "nowrap",
-                    boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 16px ${getMarkerColor(hoveredSpot.aqi)}44`,
-                    backdropFilter: "blur(10px)"
+                    boxShadow: `0 8px 28px rgba(0,0,0,0.55), 0 0 14px ${getMarkerColor(hoveredSpot.aqi)}33`,
+                    backdropFilter: "blur(12px)"
                   }}
                 >
-                  <strong style={{ display: "block", marginBottom: "4px", fontSize: "14px" }}>
+                  <strong style={{ display: "block", marginBottom: "3px", fontSize: "13px" }}>
                     {hoveredSpot.city}
                   </strong>
                   AQI: <span style={{ color: getMarkerColor(hoveredSpot.aqi), fontWeight: "bold" }}>
@@ -1244,26 +1233,26 @@ function WorldMapSection() {
       {/* City cards */}
       <div style={{
         display: "grid",
-        gridTemplateColumns: "repeat(auto-fill, minmax(148px, 1fr))",
-        gap: "12px"
+        gridTemplateColumns: "repeat(auto-fill, minmax(145px, 1fr))",
+        gap: "10px"
       }}>
         {POLLUTION_SPOTS.sort((a, b) => b.aqi - a.aqi).map((spot, i) => (
-          <Reveal key={i} delay={i * 0.03} direction="up">
-            <FrostedCard style={{ padding: "16px" }}>
-              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "8px" }}>
+          <Reveal key={i} delay={i * 0.025} direction="up">
+            <FrostedCard style={{ padding: "14px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "7px" }}>
                 <div style={{
                   width: 8, height: 8, borderRadius: "50%",
                   background: getMarkerColor(spot.aqi),
                   boxShadow: `0 0 6px ${getMarkerColor(spot.aqi)}`
                 }} />
-                <span style={{ color: "white", fontSize: "13px", fontWeight: "600" }}>
+                <span style={{ color: "white", fontSize: "12px", fontWeight: "600" }}>
                   {spot.city}
                 </span>
               </div>
-              <div style={{ color: getMarkerColor(spot.aqi), fontSize: "24px", fontWeight: "700" }}>
+              <div style={{ color: getMarkerColor(spot.aqi), fontSize: "22px", fontWeight: "700" }}>
                 {spot.aqi}
               </div>
-              <div style={{ color: "rgba(255,255,255,0.3)", fontSize: "10px", marginTop: "2px" }}>
+              <div style={{ color: "rgba(255,255,255,0.28)", fontSize: "10px", marginTop: "2px" }}>
                 {spot.level}
               </div>
             </FrostedCard>
@@ -1280,10 +1269,10 @@ function Footer() {
     <Reveal>
       <footer style={{
         position: "relative", zIndex: 10, textAlign: "center",
-        padding: "48px 24px", borderTop: "1px solid rgba(255,255,255,0.04)"
+        padding: "44px 24px", borderTop: "1px solid rgba(255,255,255,0.04)"
       }}>
-        <p style={{ color: "#4ade80", fontSize: "20px", marginBottom: "8px" }}>🌱 EcoAI</p>
-        <p style={{ color: "rgba(255,255,255,0.2)", fontSize: "12px" }}>
+        <p style={{ color: "#4ade80", fontSize: "18px", marginBottom: "6px" }}>🌱 EcoAI</p>
+        <p style={{ color: "rgba(255,255,255,0.18)", fontSize: "12px" }}>
           Built for a greener future • Hackathon 2025
         </p>
       </footer>
@@ -1294,7 +1283,6 @@ function Footer() {
 // ── Root ───────────────────────────────────────────────────
 export default function App() {
   const { scrollYProgress } = useScroll()
-
   return (
     <>
       <GlobalStyles />
