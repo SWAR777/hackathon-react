@@ -12,30 +12,14 @@ body {
   font-family: -apple-system, BlinkMacSystemFont,
     'SF Pro Display', 'Segoe UI', Arial, sans-serif;
   min-height: 100vh;
-  background: #020d06;
+  background: #010906;
   overflow-x: hidden;
   color: white;
 }
 
-.leaflet-container {
-  background: #0a1628 !important;
-}
-
-.leaflet-popup-content-wrapper {
-  background: rgba(4,15,8,0.96) !important;
-  color: white !important;
-  border: 1px solid rgba(255,255,255,0.08) !important;
-  border-radius: 10px !important;
-  box-shadow: 0 4px 20px rgba(0,0,0,0.5) !important;
-}
-
-.leaflet-popup-tip {
-  background: rgba(4,15,8,0.96) !important;
-}
-
 ::-webkit-scrollbar { width: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-track { background: #010906; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(74,222,128,0.2);
-  border-radius: 2px;
+  background: #15803d;
+  border-radius: 4px;
 }

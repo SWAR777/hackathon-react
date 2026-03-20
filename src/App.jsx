@@ -1,19 +1,15 @@
-import { useState, useEffect, useRef, Suspense } from "react"
+import { useState, useEffect, useRef } from "react"
 import {
   motion, AnimatePresence,
   useScroll, useTransform, useInView, useSpring
 } from "framer-motion"
 import { Canvas, useFrame } from "@react-three/fiber"
-import { Sphere, useTexture, Stars, OrbitControls } from "@react-three/drei"
-import { MapContainer, TileLayer, CircleMarker, Popup } from "react-leaflet"
+import { Sphere, Stars, OrbitControls } from "@react-three/drei"
 import {
   RadialBarChart, RadialBar, ResponsiveContainer,
-  BarChart, Bar, XAxis, YAxis, Cell,
-  PieChart, Pie
+  BarChart, Bar, XAxis, YAxis, Cell
 } from "recharts"
 import * as THREE from "three"
-import "leaflet/dist/leaflet.css"
-import "./App.css"
 
 const API_URL = "https://hackathon-practice-w99t.onrender.com"
 
@@ -35,6 +31,7 @@ const POLLUTION_SPOTS = [
   { city: "Paris",     lat: 48.9,  lng: 2.3,    aqi: 42,  level: "Good" },
   { city: "Berlin",    lat: 52.5,  lng: 13.4,   aqi: 38,  level: "Good" },
 ]
+
 function getMarkerColor(aqi) {
   if (aqi >= 200) return "#ff2020"
   if (aqi >= 150) return "#ff6600"
@@ -42,6 +39,7 @@ function getMarkerColor(aqi) {
   if (aqi >= 50)  return "#ffee00"
   return "#00cc44"
 }
+
 function getMarkerSize(aqi) {
   if (aqi >= 200) return 18
   if (aqi >= 150) return 14
@@ -49,93 +47,101 @@ function getMarkerSize(aqi) {
   return 8
 }
 
+// ── Global Styles ──────────────────────────────────────────
+const GlobalStyles = () => (
+  <style>{`
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      background-color: #010906;
+      color: white;
+      overflow-x: hidden;
+    }
+    textarea::placeholder { color: rgba(255,255,255,0.25); }
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: #010906; }
+    ::-webkit-scrollbar-thumb { background: #15803d; border-radius: 4px; }
+  `}</style>
+)
+
 // ── Forest Background ──────────────────────────────────────
 function ForestBackground({ scrollYProgress }) {
-  // Light rays get stronger as you scroll
-  const rayOpacity  = useTransform(scrollYProgress, [0, 0.3, 1], [0.3, 1, 0.5])
-  const raySpread   = useTransform(scrollYProgress, [0, 0.4], [1, 1.8])
-  const rayY        = useTransform(scrollYProgress, [0, 1], ["0%", "30%"])
-  // Parallax layers
-  const layer1Y     = useTransform(scrollYProgress, [0, 1], ["0%", "20%"])
-  const layer2Y     = useTransform(scrollYProgress, [0, 1], ["0%", "10%"])
-  const layer3Y     = useTransform(scrollYProgress, [0, 1], ["0%", "5%"])
+  const rayOpacity = useTransform(scrollYProgress, [0, 0.3, 1], [0.3, 1, 0.5])
+  const raySpread  = useTransform(scrollYProgress, [0, 0.4], [1, 1.8])
+  const rayY       = useTransform(scrollYProgress, [0, 1], ["0%", "30%"])
+  const layer1Y    = useTransform(scrollYProgress, [0, 1], ["0%", "20%"])
+  const layer2Y    = useTransform(scrollYProgress, [0, 1], ["0%", "10%"])
 
-  const smoothRayOpacity = useSpring(rayOpacity,  { stiffness: 60, damping: 20 })
-  const smoothRaySpread  = useSpring(raySpread,   { stiffness: 40, damping: 18 })
+  const smoothRayOpacity = useSpring(rayOpacity, { stiffness: 60, damping: 20 })
+  const smoothRaySpread  = useSpring(raySpread,  { stiffness: 40, damping: 18 })
 
   return (
     <div style={{
-      position: "fixed", inset: 0,
-      zIndex: 0, overflow: "hidden",
-      pointerEvents: "none"
+      position: "fixed", inset: 0, zIndex: 0,
+      overflow: "hidden", pointerEvents: "none"
     }}>
-      {/* Sky — aurora colors */}
+      {/* Sky base */}
       <div style={{
         position: "absolute", inset: 0,
         background: `linear-gradient(
           180deg,
-          #000805 0%,
-          #011a08 18%,
-          #02200d 35%,
-          #041e0b 55%,
-          #031508 75%,
-          #010906 100%
+          #000805 0%, #011a08 18%, #02200d 35%,
+          #041e0b 55%, #031508 75%, #010906 100%
         )`
       }} />
 
-      {/* Aurora 1 — green */}
-      <motion.div style={{
-        position: "absolute", top: "-10%", left: "-10%",
-        width: "70%", height: "60%",
-        background: "radial-gradient(ellipse, rgba(0,255,80,0.20) 0%, transparent 68%)",
-        filter: "blur(50px)", borderRadius: "50%"
-      }}
+      {/* Aurora — green */}
+      <motion.div
+        style={{
+          position: "absolute", top: "-10%", left: "-10%",
+          width: "70%", height: "60%", borderRadius: "50%",
+          background: "radial-gradient(ellipse at center, rgba(0,255,80,0.15) 0%, rgba(0,255,80,0.05) 40%, transparent 70%)"
+        }}
         animate={{ x: [0, 110, -50, 0], y: [0, 55, -25, 0], scale: [1, 1.25, 0.88, 1], opacity: [0.7, 1, 0.65, 0.7] }}
         transition={{ duration: 15, repeat: Infinity, ease: "easeInOut" }}
       />
-      {/* Aurora 2 — blue */}
-      <motion.div style={{
-        position: "absolute", top: "-15%", right: "-5%",
-        width: "60%", height: "55%",
-        background: "radial-gradient(ellipse, rgba(0,130,255,0.16) 0%, transparent 68%)",
-        filter: "blur(55px)", borderRadius: "50%"
-      }}
+
+      {/* Aurora — blue */}
+      <motion.div
+        style={{
+          position: "absolute", top: "-15%", right: "-5%",
+          width: "60%", height: "55%", borderRadius: "50%",
+          background: "radial-gradient(ellipse at center, rgba(0,130,255,0.12) 0%, rgba(0,130,255,0.04) 40%, transparent 70%)"
+        }}
         animate={{ x: [0, -75, 35, 0], y: [0, 65, -35, 0], scale: [1, 0.82, 1.18, 1], opacity: [0.5, 0.9, 0.5, 0.5] }}
         transition={{ duration: 19, repeat: Infinity, ease: "easeInOut" }}
       />
-      {/* Aurora 3 — teal */}
-      <motion.div style={{
-        position: "absolute", top: "5%", left: "28%",
-        width: "48%", height: "42%",
-        background: "radial-gradient(ellipse, rgba(0,220,175,0.13) 0%, transparent 68%)",
-        filter: "blur(60px)", borderRadius: "50%"
-      }}
+
+      {/* Aurora — teal */}
+      <motion.div
+        style={{
+          position: "absolute", top: "5%", left: "28%",
+          width: "48%", height: "42%", borderRadius: "50%",
+          background: "radial-gradient(ellipse at center, rgba(0,220,175,0.10) 0%, rgba(0,220,175,0.03) 40%, transparent 70%)"
+        }}
         animate={{ x: [0, 55, -85, 0], y: [0, -38, 75, 0], opacity: [0.4, 0.88, 0.4, 0.4] }}
         transition={{ duration: 23, repeat: Infinity, ease: "easeInOut" }}
       />
 
-      {/* Real forest photo — layer 1 (back) */}
+      {/* Forest photo — back layer */}
       <motion.div style={{
         position: "absolute", inset: 0,
         backgroundImage: `url('https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&q=80')`,
-        backgroundSize: "cover",
-        backgroundPosition: "center top",
-        opacity: 0.55,
-        y: layer1Y
+        backgroundSize: "cover", backgroundPosition: "center top",
+        opacity: 0.55, y: layer1Y
       }} />
 
-      {/* Darker forest overlay — layer 2 (mid) */}
+      {/* Forest photo — mid layer (darker, blurred) */}
       <motion.div style={{
         position: "absolute", inset: 0,
         backgroundImage: `url('https://images.unsplash.com/photo-1448375240586-882707db888b?w=1920&q=80')`,
-        backgroundSize: "110%",
-        backgroundPosition: "center 20%",
-        opacity: 0.25,
-        filter: "blur(1px) brightness(0.4)",
+        backgroundSize: "110%", backgroundPosition: "center 20%",
+        opacity: 0.2, filter: "blur(2px) brightness(0.4)",
         y: layer2Y
       }} />
 
-      {/* Top gradient — sky blends into forest */}
+      {/* Sky-to-dark gradient overlay */}
       <div style={{
         position: "absolute", inset: 0,
         background: `linear-gradient(
@@ -148,30 +154,27 @@ function ForestBackground({ scrollYProgress }) {
         )`
       }} />
 
-      {/* VOLUMETRIC LIGHT RAYS — grow on scroll */}
+      {/* Volumetric light rays */}
       <motion.div style={{
         position: "absolute", inset: 0,
-        opacity: smoothRayOpacity,
-        y: rayY
+        opacity: smoothRayOpacity, y: rayY
       }}>
         {[
-          { left: "6%",  rotate: -14, w: 55,  baseOpacity: 0.22, delay: 0.0 },
-          { left: "14%", rotate: -7,  w: 35,  baseOpacity: 0.17, delay: 0.4 },
-          { left: "22%", rotate: -2,  w: 75,  baseOpacity: 0.28, delay: 0.9 },
-          { left: "31%", rotate: 4,   w: 45,  baseOpacity: 0.20, delay: 0.2 },
-          { left: "40%", rotate: -5,  w: 90,  baseOpacity: 0.32, delay: 0.7 },
-          { left: "50%", rotate: 7,   w: 60,  baseOpacity: 0.25, delay: 1.2 },
-          { left: "59%", rotate: -3,  w: 40,  baseOpacity: 0.18, delay: 0.5 },
-          { left: "68%", rotate: 9,   w: 70,  baseOpacity: 0.26, delay: 1.0 },
-          { left: "77%", rotate: -9,  w: 50,  baseOpacity: 0.21, delay: 0.3 },
-          { left: "86%", rotate: 5,   w: 80,  baseOpacity: 0.29, delay: 0.8 },
-          { left: "93%", rotate: -6,  w: 42,  baseOpacity: 0.19, delay: 1.3 },
+          { left: "6%",  rotate: -14, w: 55, baseOpacity: 0.15, delay: 0.0 },
+          { left: "14%", rotate: -7,  w: 35, baseOpacity: 0.12, delay: 0.4 },
+          { left: "22%", rotate: -2,  w: 75, baseOpacity: 0.18, delay: 0.9 },
+          { left: "31%", rotate:  4,  w: 45, baseOpacity: 0.14, delay: 0.2 },
+          { left: "40%", rotate: -5,  w: 90, baseOpacity: 0.20, delay: 0.7 },
+          { left: "50%", rotate:  7,  w: 60, baseOpacity: 0.16, delay: 1.2 },
+          { left: "59%", rotate: -3,  w: 42, baseOpacity: 0.13, delay: 0.5 },
+          { left: "68%", rotate:  9,  w: 70, baseOpacity: 0.17, delay: 1.0 },
+          { left: "77%", rotate: -8,  w: 50, baseOpacity: 0.15, delay: 0.6 },
+          { left: "86%", rotate:  5,  w: 80, baseOpacity: 0.19, delay: 0.8 },
+          { left: "93%", rotate: -6,  w: 38, baseOpacity: 0.12, delay: 1.3 },
         ].map((ray, i) => (
           <motion.div key={i} style={{
             position: "absolute", top: 0,
-            left: ray.left,
-            width: `${ray.w}px`,
-            height: "100vh",
+            left: ray.left, width: `${ray.w}px`, height: "100vh",
             background: `linear-gradient(
               180deg,
               rgba(200,255,200,${ray.baseOpacity}) 0%,
@@ -193,21 +196,20 @@ function ForestBackground({ scrollYProgress }) {
       {/* Ground fog */}
       <div style={{
         position: "absolute", bottom: 0, left: 0, right: 0, height: "22%",
-        background: `linear-gradient(0deg, rgba(8,30,15,0.95) 0%, rgba(4,18,8,0.6) 45%, transparent 100%)`,
-        filter: "blur(3px)"
+        background: `linear-gradient(0deg, rgba(8,30,15,0.95) 0%, rgba(4,18,8,0.6) 45%, transparent 100%)`
       }} />
 
       {/* Fireflies */}
-      {Array.from({ length: 22 }, (_, i) => (
+      {Array.from({ length: 12 }, (_, i) => (
         <motion.div key={i} style={{
           position: "absolute",
           bottom: `${8 + (i * 13) % 38}%`,
           left: `${(i * 17 + 5) % 95}%`,
-          width: i % 3 === 0 ? "4px" : "2px",
+          width:  i % 3 === 0 ? "4px" : "2px",
           height: i % 3 === 0 ? "4px" : "2px",
           borderRadius: "50%",
-          background: i % 4 === 0 ? "#ffff88" : "#aaff88",
-          boxShadow: i % 4 === 0
+          background:  i % 4 === 0 ? "#ffff88" : "#aaff88",
+          boxShadow:   i % 4 === 0
             ? "0 0 8px #ffff88, 0 0 16px rgba(255,255,136,0.6)"
             : "0 0 6px #aaff88, 0 0 12px rgba(170,255,136,0.5)"
         }}
@@ -220,8 +222,7 @@ function ForestBackground({ scrollYProgress }) {
           transition={{
             duration: 1.8 + (i % 4) * 0.7,
             delay: (i * 0.45) % 7,
-            repeat: Infinity,
-            ease: "easeInOut"
+            repeat: Infinity, ease: "easeInOut"
           }}
         />
       ))}
@@ -229,21 +230,28 @@ function ForestBackground({ scrollYProgress }) {
   )
 }
 
-// ── Falling Leaves — zIndex 1 (behind content) ─────────────
+// ── Falling Leaves — zIndex 1, BEHIND all content ──────────
 const LEAVES = ["🍃", "🌿", "🍀", "🌱"]
+
 function FallingLeaves() {
-  const leaves = Array.from({ length: 12 }, (_, i) => ({
+  const leaves = Array.from({ length: 8 }, (_, i) => ({
     id: i, emoji: LEAVES[i % LEAVES.length],
-    left: `${4 + i * 8}%`, size: 13 + (i % 4) * 6,
-    duration: 11 + (i % 5) * 4, delay: i * 1.2,
+    left: `${4 + i * 12}%`,
+    size: 13 + (i % 4) * 6,
+    duration: 11 + (i % 5) * 4,
+    delay: i * 1.4,
     opacity: 0.18 + (i % 3) * 0.07
   }))
+
   return (
-    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 1, overflow: "hidden" }}>
+    <div style={{
+      position: "fixed", inset: 0,
+      pointerEvents: "none", zIndex: 1, overflow: "hidden"
+    }}>
       {leaves.map(leaf => (
         <motion.div key={leaf.id} style={{
-          position: "absolute", left: leaf.left, top: "-60px",
-          fontSize: leaf.size, opacity: leaf.opacity, filter: "blur(0.3px)"
+          position: "absolute", left: leaf.left,
+          top: "-60px", fontSize: leaf.size, opacity: leaf.opacity
         }}
           animate={{ y: ["0px", "110vh"], rotate: [0, 360], x: [0, 22, -18, 12, 0] }}
           transition={{
@@ -264,12 +272,17 @@ function LeafSweep({ onDone }) {
     top: `${(i * 3.8) % 100}vh`,
     size: 20 + (i % 5) * 10, delay: i * 0.055
   }))
+
   useEffect(() => {
     const t = setTimeout(onDone, 2500)
     return () => clearTimeout(t)
   }, [])
+
   return (
-    <motion.div style={{ position: "fixed", inset: 0, zIndex: 9999, overflow: "hidden", pointerEvents: "none" }}>
+    <motion.div style={{
+      position: "fixed", inset: 0,
+      zIndex: 9999, overflow: "hidden", pointerEvents: "none"
+    }}>
       <motion.div
         style={{ position: "absolute", inset: 0, background: "linear-gradient(135deg,#052e16,#14532d)" }}
         initial={{ x: "-100%" }}
@@ -278,7 +291,8 @@ function LeafSweep({ onDone }) {
       />
       {sweepLeaves.map(leaf => (
         <motion.div key={leaf.id} style={{
-          position: "absolute", top: leaf.top, fontSize: leaf.size, left: "-80px"
+          position: "absolute", top: leaf.top,
+          fontSize: leaf.size, left: "-80px"
         }}
           initial={{ x: "-80px" }}
           animate={{ x: "115vw", rotate: 540 }}
@@ -306,7 +320,7 @@ function LeafSweep({ onDone }) {
   )
 }
 
-// ── Scroll Reveal ──────────────────────────────────────────
+// ── Scroll Reveal — re-triggers every scroll ───────────────
 function Reveal({ children, delay = 0, direction = "up" }) {
   const ref = useRef(null)
   const inView = useInView(ref, { once: false, margin: "-60px" })
@@ -354,57 +368,43 @@ function CO2Counter() {
   )
 }
 
-// ── CO2 Speedometer Gauge ──────────────────────────────────
+// ── Speedometer Gauge ──────────────────────────────────────
 function SpeedometerGauge({ value }) {
-  // value = 0 to 1 (confidence score)
   const [animated, setAnimated] = useState(0)
 
   useEffect(() => {
     let start = null
-    const target = value
     const step = ts => {
       if (!start) start = ts
       const p = Math.min((ts - start) / 1600, 1)
-      const eased = 1 - Math.pow(1 - p, 3)
-      setAnimated(eased * target)
+      setAnimated((1 - Math.pow(1 - p, 3)) * value)
       if (p < 1) requestAnimationFrame(step)
     }
     requestAnimationFrame(step)
   }, [value])
 
-  const size = 220
-  const cx = size / 2
-  const cy = size / 2 + 20
-  const r = 82
-  const startAngle = -210
-  const endAngle   = 30
+  const size = 220, cx = size / 2, cy = size / 2 + 20
+  const r = 82, startAngle = -210, endAngle = 30
   const totalAngle = endAngle - startAngle
-  const needleAngle = startAngle + totalAngle * animated
 
-  // Arc helper
-  const polarToXY = (angle, radius) => {
-    const rad = (angle - 90) * Math.PI / 180
-    return {
-      x: cx + radius * Math.cos(rad),
-      y: cy + radius * Math.sin(rad)
-    }
-  }
+  const polarToXY = (angle, radius) => ({
+    x: cx + radius * Math.cos((angle - 90) * Math.PI / 180),
+    y: cy + radius * Math.sin((angle - 90) * Math.PI / 180)
+  })
 
-  const arcPath = (r, start, end, color, strokeWidth = 10) => {
+  const arcPath = (r, start, end, color, sw = 10) => {
     const s = polarToXY(start, r)
-    const e = polarToXY(end,   r)
+    const e = polarToXY(end, r)
     const large = (end - start) > 180 ? 1 : 0
     return (
       <path
         d={`M ${s.x} ${s.y} A ${r} ${r} 0 ${large} 1 ${e.x} ${e.y}`}
-        fill="none" stroke={color} strokeWidth={strokeWidth}
-        strokeLinecap="round"
+        fill="none" stroke={color} strokeWidth={sw} strokeLinecap="round"
       />
     )
   }
 
-  const needle = polarToXY(needleAngle, r - 10)
-
+  const needle = polarToXY(startAngle + totalAngle * animated, r - 10)
   const zones = [
     { start: -210, end: -150, color: "#ff2222" },
     { start: -150, end: -90,  color: "#ff7700" },
@@ -414,72 +414,38 @@ function SpeedometerGauge({ value }) {
 
   const label = animated > 0.75 ? "Excellent"
     : animated > 0.5  ? "Good"
-    : animated > 0.25 ? "Moderate"
-    : "Poor"
+    : animated > 0.25 ? "Moderate" : "Poor"
 
   const labelColor = animated > 0.75 ? "#4ade80"
     : animated > 0.5  ? "#86efac"
-    : animated > 0.25 ? "#ffdd00"
-    : "#ff6b6b"
+    : animated > 0.25 ? "#ffdd00" : "#ff6b6b"
 
   return (
     <div style={{ textAlign: "center" }}>
-      <p style={{
-        color: "rgba(255,255,255,0.4)", fontSize: "10px",
-        letterSpacing: "2px", marginBottom: "8px"
-      }}>
+      <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "10px", letterSpacing: "2px", marginBottom: "8px" }}>
         ECO IMPACT SCORE
       </p>
       <svg width={size} height={size * 0.75} viewBox={`0 0 ${size} ${size * 0.75}`}>
-        {/* Background arc */}
         {arcPath(r, startAngle, endAngle, "rgba(255,255,255,0.06)", 14)}
-
-        {/* Colored zones */}
-        {zones.map((z, i) => (
-          <g key={i}>{arcPath(r, z.start, z.end, z.color + "55", 14)}</g>
-        ))}
-
-        {/* Animated fill arc */}
-        {arcPath(r, startAngle, startAngle + totalAngle * animated,
-          animated > 0.75 ? "#4ade80"
-          : animated > 0.5 ? "#86efac"
-          : animated > 0.25 ? "#ffdd00" : "#ff6b6b", 14)}
-
-        {/* Tick marks */}
+        {zones.map((z, i) => <g key={i}>{arcPath(r, z.start, z.end, z.color + "55", 14)}</g>)}
+        {arcPath(r, startAngle, startAngle + totalAngle * animated, labelColor, 14)}
         {Array.from({ length: 11 }, (_, i) => {
-          const angle = startAngle + (totalAngle / 10) * i
-          const outer = polarToXY(angle, r + 18)
-          const inner = polarToXY(angle, r + 10)
+          const outer = polarToXY(startAngle + (totalAngle / 10) * i, r + 18)
+          const inner = polarToXY(startAngle + (totalAngle / 10) * i, r + 10)
           return (
             <line key={i}
-              x1={outer.x} y1={outer.y}
-              x2={inner.x} y2={inner.y}
+              x1={outer.x} y1={outer.y} x2={inner.x} y2={inner.y}
               stroke="rgba(255,255,255,0.2)" strokeWidth={i % 5 === 0 ? 2 : 1}
             />
           )
         })}
-
-        {/* Needle */}
-        <line
-          x1={cx} y1={cy}
-          x2={needle.x} y2={needle.y}
-          stroke="white" strokeWidth={2.5} strokeLinecap="round"
-        />
-        {/* Needle pivot */}
+        <line x1={cx} y1={cy} x2={needle.x} y2={needle.y} stroke="white" strokeWidth={2.5} strokeLinecap="round" />
         <circle cx={cx} cy={cy} r={6} fill="white" />
         <circle cx={cx} cy={cy} r={3} fill="#4ade80" />
-
-        {/* Center label */}
-        <text x={cx} y={cy + 30}
-          textAnchor="middle" fill={labelColor}
-          fontSize="16" fontWeight="bold" fontFamily="Arial"
-        >
+        <text x={cx} y={cy + 30} textAnchor="middle" fill={labelColor} fontSize="16" fontWeight="bold" fontFamily="Arial">
           {label}
         </text>
-        <text x={cx} y={cy + 48}
-          textAnchor="middle" fill="rgba(255,255,255,0.35)"
-          fontSize="11" fontFamily="Arial"
-        >
+        <text x={cx} y={cy + 48} textAnchor="middle" fill="rgba(255,255,255,0.35)" fontSize="11" fontFamily="Arial">
           {Math.round(animated * 100)}% eco score
         </text>
       </svg>
@@ -487,45 +453,30 @@ function SpeedometerGauge({ value }) {
   )
 }
 
-// ── Ecosystem Health Rings ─────────────────────────────────
+// ── Ecosystem Health Bars ──────────────────────────────────
 function EcosystemRings({ isEco }) {
   const layers = [
-    { name: "Air Quality",    value: isEco ? 82 : 28, color: "#4ade80", icon: "🌬️" },
-    { name: "Carbon Output",  value: isEco ? 75 : 35, color: "#22c55e", icon: "💨" },
-    { name: "Energy Source",  value: isEco ? 90 : 20, color: "#86efac", icon: "⚡" },
-    { name: "Biodiversity",   value: isEco ? 68 : 42, color: "#6ee7b7", icon: "🌿" },
+    { name: "Air Quality",   value: isEco ? 82 : 28, color: "#4ade80", icon: "🌬️" },
+    { name: "Carbon Output", value: isEco ? 75 : 35, color: "#22c55e", icon: "💨" },
+    { name: "Energy Source", value: isEco ? 90 : 20, color: "#86efac", icon: "⚡" },
+    { name: "Biodiversity",  value: isEco ? 68 : 42, color: "#6ee7b7", icon: "🌿" },
   ]
-
   return (
     <div style={{ padding: "0 4px" }}>
-      <p style={{
-        color: "rgba(255,255,255,0.4)", fontSize: "10px",
-        letterSpacing: "2px", marginBottom: "14px", textAlign: "center"
-      }}>
+      <p style={{ color: "rgba(255,255,255,0.4)", fontSize: "10px", letterSpacing: "2px", marginBottom: "14px", textAlign: "center" }}>
         ECOSYSTEM HEALTH LAYERS
       </p>
       {layers.map((layer, i) => (
-        <motion.div key={i}
-          style={{ marginBottom: "12px" }}
+        <motion.div key={i} style={{ marginBottom: "12px" }}
           initial={{ opacity: 0, x: -20 }}
           animate={{ opacity: 1, x: 0 }}
           transition={{ delay: 0.4 + i * 0.12, duration: 0.6 }}
         >
-          <div style={{
-            display: "flex", justifyContent: "space-between",
-            alignItems: "center", marginBottom: "5px"
-          }}>
-            <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px" }}>
-              {layer.icon} {layer.name}
-            </span>
-            <span style={{ color: layer.color, fontSize: "12px", fontWeight: "bold" }}>
-              {layer.value}%
-            </span>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "5px" }}>
+            <span style={{ color: "rgba(255,255,255,0.6)", fontSize: "12px" }}>{layer.icon} {layer.name}</span>
+            <span style={{ color: layer.color, fontSize: "12px", fontWeight: "bold" }}>{layer.value}%</span>
           </div>
-          <div style={{
-            height: "6px", background: "rgba(255,255,255,0.06)",
-            borderRadius: "3px", overflow: "hidden"
-          }}>
+          <div style={{ height: "6px", background: "rgba(255,255,255,0.06)", borderRadius: "3px", overflow: "hidden" }}>
             <motion.div
               style={{ height: "100%", background: layer.color, borderRadius: "3px" }}
               initial={{ width: "0%" }}
@@ -539,32 +490,34 @@ function EcosystemRings({ isEco }) {
   )
 }
 
-// ── 3D Globe ───────────────────────────────────────────────
+// ── 3D Globe — Hologram style ──────────────────────────────
 function EarthMesh() {
   const earthRef  = useRef()
-  const cloudsRef = useRef()
-  const [colorMap, normalMap, specularMap, cloudsMap] = useTexture([
-    "https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_atmos_2048.jpg",
-    "https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_normal_2048.jpg",
-    "https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_specular_2048.jpg",
-    "https://raw.githubusercontent.com/mrdoob/three.js/dev/examples/textures/planets/earth_clouds_1024.png",
-  ])
+  const gridRef   = useRef()
+
   useFrame(({ clock }) => {
     const t = clock.getElapsedTime()
-    if (earthRef.current)  earthRef.current.rotation.y  = t * 0.09
-    if (cloudsRef.current) cloudsRef.current.rotation.y = t * 0.11
+    if (earthRef.current) earthRef.current.rotation.y  = t * 0.09
+    if (gridRef.current)  gridRef.current.rotation.y   = t * 0.06
   })
+
   return (
     <group>
-      <Sphere args={[1.08, 64, 64]}>
-        <meshPhongMaterial color="#4488ff" transparent opacity={0.07} side={THREE.BackSide} />
+      {/* Outer atmosphere */}
+      <Sphere args={[1.12, 64, 64]}>
+        <meshPhongMaterial color="#4ade80" transparent opacity={0.04} side={THREE.BackSide} />
       </Sphere>
+      {/* Core */}
       <Sphere ref={earthRef} args={[1, 64, 64]}>
-        <meshPhongMaterial map={colorMap} normalMap={normalMap}
-          specularMap={specularMap} specular={new THREE.Color(0x333333)} shininess={15} />
+        <meshStandardMaterial color="#062210" emissive="#020a05" roughness={0.4} metalness={0.8} />
       </Sphere>
-      <Sphere ref={cloudsRef} args={[1.015, 64, 64]}>
-        <meshPhongMaterial map={cloudsMap} transparent opacity={0.35} depthWrite={false} />
+      {/* Wireframe grid */}
+      <Sphere ref={gridRef} args={[1.015, 32, 32]}>
+        <meshBasicMaterial color="#4ade80" wireframe transparent opacity={0.15} />
+      </Sphere>
+      {/* Inner glow ring */}
+      <Sphere args={[1.06, 64, 64]}>
+        <meshPhongMaterial color="#22c55e" transparent opacity={0.03} side={THREE.FrontSide} />
       </Sphere>
     </group>
   )
@@ -572,40 +525,47 @@ function EarthMesh() {
 
 function Globe() {
   return (
-    <Canvas camera={{ position: [0, 0, 2.8], fov: 42 }}
+    <Canvas
+      camera={{ position: [0, 0, 2.8], fov: 42 }}
       style={{ background: "transparent" }}
-      gl={{ alpha: true, antialias: true }}
+      dpr={[1, 2]}
+      gl={{ alpha: true, antialias: true, powerPreference: "high-performance" }}
     >
-      <ambientLight intensity={0.25} />
-      <directionalLight position={[5, 3, 5]} intensity={1.8} />
-      <pointLight position={[-5, -3, -5]} intensity={0.3} color="#4466ff" />
-      <Stars radius={100} depth={50} count={2000} factor={4} fade speed={0.4} />
-      <Suspense fallback={null}><EarthMesh /></Suspense>
+      <ambientLight intensity={0.5} />
+      <directionalLight position={[5, 3, 5]} intensity={2.5} color="#4ade80" />
+      <pointLight position={[-5, -3, -5]} intensity={1.5} color="#22c55e" />
+      <pointLight position={[0, 5, 0]} intensity={1.0} color="#86efac" />
+      <Stars radius={100} depth={50} count={1500} factor={3} fade speed={0.4} />
+      <EarthMesh />
       <OrbitControls enableZoom={false} enablePan={false} rotateSpeed={0.35} />
     </Canvas>
   )
 }
 
-// ── Fixed Globe ────────────────────────────────────────────
+// ── Fixed Globe — fades on scroll ─────────────────────────
 function FixedGlobe({ scrollYProgress }) {
   const opacity = useTransform(scrollYProgress, [0, 0.18, 0.32], [1, 0.6, 0])
-  const scale   = useTransform(scrollYProgress, [0, 0.3],  [1, 0.75])
-  const y       = useTransform(scrollYProgress, [0, 0.3],  [0, -50])
+  const scale   = useTransform(scrollYProgress, [0, 0.3], [1, 0.75])
+  const yOffset = useTransform(scrollYProgress, [0, 0.3], [0, -50])
+
   return (
     <motion.div style={{
       position: "fixed",
-      top: "50%", right: "5%",
-      translateY: "-50%",
+      top: "50%",
+      right: "5%",
+      transform: "translateY(-50%)",
       width: "40vw", height: "40vw",
       maxWidth: "500px", maxHeight: "500px",
-      zIndex: 2, opacity, scale, y,
+      zIndex: 2,
+      opacity, scale, y: yOffset,
       pointerEvents: "none"
     }}>
       <Globe />
-      <motion.p style={{
-        textAlign: "center", color: "rgba(255,255,255,0.18)",
-        fontSize: "11px", letterSpacing: "1px", marginTop: "6px"
-      }}
+      <motion.p
+        style={{
+          textAlign: "center", color: "rgba(255,255,255,0.18)",
+          fontSize: "11px", letterSpacing: "1px", marginTop: "6px"
+        }}
         initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 1.5 }}
       >
         Drag to rotate
@@ -636,7 +596,8 @@ function ConfidenceChart({ value }) {
   return (
     <div style={{ position: "relative", width: "100%", height: "150px" }}>
       <ResponsiveContainer width="100%" height="100%">
-        <RadialBarChart innerRadius="65%" outerRadius="95%"
+        <RadialBarChart
+          innerRadius="65%" outerRadius="95%"
           data={[{ value: pct }]} startAngle={90} endAngle={-270}
         >
           <RadialBar dataKey="value" cornerRadius={8} fill="#4ade80"
@@ -664,7 +625,9 @@ function ConfidenceChart({ value }) {
 // ── Keyword Chart ──────────────────────────────────────────
 function KeywordChart({ text }) {
   const keywords = ["solar", "wind", "recycle", "green", "clean", "eco"]
-  const data = keywords.map(k => ({ keyword: k, found: text.toLowerCase().includes(k) ? 1 : 0 }))
+  const data = keywords.map(k => ({
+    keyword: k, found: text.toLowerCase().includes(k) ? 1 : 0
+  }))
   return (
     <div style={{ width: "100%", height: "110px" }}>
       <ResponsiveContainer width="100%" height="100%">
@@ -674,7 +637,9 @@ function KeywordChart({ text }) {
             axisLine={false} tickLine={false}
           />
           <YAxis hide domain={[0, 1]} />
-          <Bar dataKey="found" radius={[5, 5, 0, 0]} isAnimationActive animationDuration={900} animationBegin={200}>
+          <Bar dataKey="found" radius={[5, 5, 0, 0]}
+            isAnimationActive animationDuration={900} animationBegin={200}
+          >
             {data.map((e, i) => (
               <Cell key={i} fill={e.found ? "#4ade80" : "rgba(255,255,255,0.06)"} />
             ))}
@@ -704,9 +669,9 @@ function Spinner() {
 function FrostedCard({ children, style = {} }) {
   return (
     <div style={{
-      background: "rgba(4,18,8,0.6)",
-      backdropFilter: "blur(30px)",
-      WebkitBackdropFilter: "blur(30px)",
+      background: "rgba(4,18,8,0.75)",
+      backdropFilter: "blur(40px)",
+      WebkitBackdropFilter: "blur(40px)",
       borderRadius: "24px",
       border: "1px solid rgba(255,255,255,0.07)",
       boxShadow: `
@@ -772,6 +737,7 @@ function HeroSection() {
       position: "relative", zIndex: 10
     }}>
       <div style={{ maxWidth: "50%", paddingRight: "40px" }}>
+
         <motion.div
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3, duration: 0.8 }}
@@ -801,8 +767,11 @@ function HeroSection() {
           <span style={{
             display: "block",
             background: "linear-gradient(120deg, #4ade80, #22c55e, #86efac)",
-            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent"
-          }}>Environmental</span>
+            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+            backgroundClip: "text"
+          }}>
+            Environmental
+          </span>
           Impact
         </motion.h1>
 
@@ -821,7 +790,8 @@ function HeroSection() {
 
         <motion.div
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.9, duration: 0.8 }} style={{ marginBottom: "36px" }}
+          transition={{ delay: 0.9, duration: 0.8 }}
+          style={{ marginBottom: "36px" }}
         >
           <CO2Counter />
         </motion.div>
@@ -841,7 +811,9 @@ function HeroSection() {
               fontSize: "14px", fontWeight: "600", cursor: "pointer",
               boxShadow: "0 0 28px rgba(74,222,128,0.3)"
             }}
-          >Start Analyzing →</motion.button>
+          >
+            Start Analyzing →
+          </motion.button>
           <motion.button
             onClick={() => document.getElementById("map")?.scrollIntoView({ behavior: "smooth" })}
             whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
@@ -852,7 +824,9 @@ function HeroSection() {
               border: "1px solid rgba(255,255,255,0.1)",
               borderRadius: "14px", fontSize: "14px", cursor: "pointer"
             }}
-          >World Map 🗺️</motion.button>
+          >
+            World Map 🗺️
+          </motion.button>
         </motion.div>
       </div>
 
@@ -870,7 +844,8 @@ function HeroSection() {
           borderRadius: "12px",
           display: "flex", justifyContent: "center", paddingTop: "6px"
         }}>
-          <motion.div style={{ width: "3px", height: "8px", background: "#4ade80", borderRadius: "2px" }}
+          <motion.div
+            style={{ width: "3px", height: "8px", background: "#4ade80", borderRadius: "2px" }}
             animate={{ y: [0, 10, 0], opacity: [1, 0, 1] }}
             transition={{ duration: 2, repeat: Infinity }}
           />
@@ -885,6 +860,7 @@ function AnalyzerSection() {
   const [text, setText]         = useState("")
   const [result, setResult]     = useState(null)
   const [loading, setLoading]   = useState(false)
+  const [loadingText, setLoadingText] = useState("🌿 Analyzing...")
   const [sweeping, setSweeping] = useState(false)
   const [error, setError]       = useState(null)
 
@@ -892,6 +868,12 @@ function AnalyzerSection() {
     if (!text.trim() || loading) return
     setResult(null); setError(null)
     setSweeping(true); setLoading(true)
+    setLoadingText("🌿 Analyzing...")
+
+    const slowTimer = setTimeout(() => {
+      setLoadingText("Waking up AI servers (may take up to 50s)...")
+    }, 5000)
+
     try {
       const res = await fetch(`${API_URL}/predict`, {
         method: "POST",
@@ -900,8 +882,10 @@ function AnalyzerSection() {
       })
       if (!res.ok) throw new Error(`Server error: ${res.status}`)
       const data = await res.json()
+      clearTimeout(slowTimer)
       setTimeout(() => { setResult(data); setLoading(false) }, 2400)
     } catch (err) {
+      clearTimeout(slowTimer)
       setTimeout(() => { setError(err.message); setLoading(false) }, 2400)
     }
   }
@@ -935,12 +919,10 @@ function AnalyzerSection() {
           </div>
         </Reveal>
 
-        {/* Two column layout when result is shown */}
         <div style={{
           width: "100%", maxWidth: "960px",
           display: "flex", gap: "20px",
-          alignItems: "flex-start",
-          flexWrap: "wrap"
+          alignItems: "flex-start", flexWrap: "wrap"
         }}>
           {/* Left — input card */}
           <Reveal delay={0.15} direction="left">
@@ -954,9 +936,7 @@ function AnalyzerSection() {
                 </p>
               </div>
 
-              <textarea
-                value={text}
-                onChange={e => setText(e.target.value)}
+              <textarea value={text} onChange={e => setText(e.target.value)}
                 placeholder="e.g. our city uses solar panels and wind turbines to power all public buildings..."
                 style={{
                   width: "100%", height: "120px", padding: "14px",
@@ -964,15 +944,13 @@ function AnalyzerSection() {
                   border: "1px solid rgba(255,255,255,0.07)",
                   borderRadius: "14px", color: "white",
                   fontSize: "14px", resize: "none", outline: "none",
-                  fontFamily: "inherit", lineHeight: "1.7",
-                  transition: "border 0.2s"
+                  fontFamily: "inherit", lineHeight: "1.7", transition: "border 0.2s"
                 }}
                 onFocus={e => e.target.style.borderColor = "rgba(74,222,128,0.35)"}
                 onBlur={e  => e.target.style.borderColor = "rgba(255,255,255,0.07)"}
               />
 
-              <motion.button
-                onClick={analyze}
+              <motion.button onClick={analyze}
                 disabled={loading || !text.trim()}
                 whileHover={!loading && text.trim() ? { scale: 1.02, boxShadow: "0 0 32px rgba(74,222,128,0.4)" } : {}}
                 whileTap={!loading && text.trim() ? { scale: 0.98 } : {}}
@@ -987,7 +965,7 @@ function AnalyzerSection() {
                   boxShadow: loading || !text.trim() ? "none" : "0 0 20px rgba(74,222,128,0.2)"
                 }}
               >
-                {loading ? "🌿 Analyzing..." : "⚡ Analyze Impact"}
+                {loading ? "Analyzing..." : "⚡ Analyze Impact"}
               </motion.button>
 
               <AnimatePresence>
@@ -997,7 +975,7 @@ function AnalyzerSection() {
                   >
                     <Spinner />
                     <p style={{ color: "rgba(255,255,255,0.3)", fontSize: "12px" }}>
-                      Running analysis...
+                      {loadingText}
                     </p>
                   </motion.div>
                 )}
@@ -1005,8 +983,7 @@ function AnalyzerSection() {
 
               <AnimatePresence>
                 {error && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                     style={{
                       marginTop: "14px", padding: "14px",
                       background: "rgba(220,38,38,0.09)",
@@ -1014,18 +991,14 @@ function AnalyzerSection() {
                       borderRadius: "12px", color: "#fca5a5", fontSize: "13px"
                     }}
                   >
-                    ⚠️ {error} — Wake Render server first via /health
+                    ⚠️ {error} — Wake Render server first by visiting /health
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              {/* Keyword chart always visible after result */}
               <AnimatePresence>
                 {result && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 12 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0 }}
+                  <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
                     style={{ marginTop: "20px" }}
                   >
                     <p style={{
@@ -1038,7 +1011,7 @@ function AnalyzerSection() {
 
                     <div style={{ display: "flex", gap: "8px", marginTop: "12px" }}>
                       {[
-                        { icon: "⚡", label: "Response", value: `${result.response_time_ms}ms` },
+                        { icon: "⚡", label: "Response", value: result.cached ? "cached" : `${result.response_time_ms}ms` },
                         { icon: "📊", label: "Score",    value: `${Math.round(result.confidence * 100)}%` },
                         { icon: isEco ? "✅" : "❌", label: "Status", value: isEco ? "Pass" : "Fail" }
                       ].map((stat, i) => (
@@ -1069,7 +1042,7 @@ function AnalyzerSection() {
             </FrostedCard>
           </Reveal>
 
-          {/* Right — graphics cards (appear after result) */}
+          {/* Right — graphics cards */}
           <AnimatePresence>
             {result && (
               <motion.div
@@ -1077,7 +1050,10 @@ function AnalyzerSection() {
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: 40 }}
                 transition={{ duration: 0.7, type: "spring", bounce: 0.2 }}
-                style={{ flex: "1", minWidth: "280px", display: "flex", flexDirection: "column", gap: "16px" }}
+                style={{
+                  flex: "1", minWidth: "280px",
+                  display: "flex", flexDirection: "column", gap: "16px"
+                }}
               >
                 {/* Result badge */}
                 <FrostedCard style={{ padding: "24px", textAlign: "center" }}>
@@ -1103,7 +1079,7 @@ function AnalyzerSection() {
                   <SpeedometerGauge value={result.confidence} />
                 </FrostedCard>
 
-                {/* Ecosystem health rings */}
+                {/* Ecosystem health */}
                 <FrostedCard style={{ padding: "20px 24px" }}>
                   <EcosystemRings isEco={isEco} />
                 </FrostedCard>
@@ -1123,6 +1099,8 @@ function AnalyzerSection() {
 
 // ── World Map Section ──────────────────────────────────────
 function WorldMapSection() {
+  const [hoveredSpot, setHoveredSpot] = useState(null)
+
   return (
     <section id="map" style={{
       minHeight: "100vh", padding: "100px 40px 80px",
@@ -1162,38 +1140,108 @@ function WorldMapSection() {
                 width: 10, height: 10, borderRadius: "50%",
                 background: item.color, boxShadow: `0 0 8px ${item.color}88`
               }} />
-              <span style={{ color: "rgba(255,255,255,0.45)", fontSize: "12px" }}>{item.label}</span>
+              <span style={{ color: "rgba(255,255,255,0.45)", fontSize: "12px" }}>
+                {item.label}
+              </span>
             </div>
           ))}
         </div>
       </Reveal>
 
+      {/* Custom hover map */}
       <Reveal delay={0.2} direction="scale">
-        <FrostedCard style={{ overflow: "hidden", marginBottom: "28px", height: "450px" }}>
-          <MapContainer center={[20, 10]} zoom={2} style={{ height: "100%", width: "100%" }}>
-            <TileLayer
-              url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-              attribution="&copy; CartoDB"
-            />
-            {POLLUTION_SPOTS.map((spot, i) => (
-              <CircleMarker key={i} center={[spot.lat, spot.lng]}
-                radius={getMarkerSize(spot.aqi)}
-                pathOptions={{
-                  color: getMarkerColor(spot.aqi),
-                  fillColor: getMarkerColor(spot.aqi),
-                  fillOpacity: 0.75, weight: 2
-                }}
-              >
-                <Popup>
-                  <strong>{spot.city}</strong><br />
-                  AQI: {spot.aqi}<br />{spot.level}
-                </Popup>
-              </CircleMarker>
-            ))}
-          </MapContainer>
+        <FrostedCard style={{ overflow: "hidden", marginBottom: "28px", height: "450px", position: "relative" }}>
+          <div style={{
+            width: "100%", height: "100%", position: "relative",
+            background: "radial-gradient(ellipse at center, rgba(74,222,128,0.06) 0%, transparent 70%)",
+            backgroundImage: `
+              linear-gradient(to right, rgba(255,255,255,0.025) 1px, transparent 1px),
+              linear-gradient(to bottom, rgba(255,255,255,0.025) 1px, transparent 1px)
+            `,
+            backgroundSize: "4% 8%"
+          }}>
+            {/* Radar label */}
+            <div style={{
+              position: "absolute", inset: 0,
+              display: "flex", alignItems: "center", justifyContent: "center",
+              opacity: 0.07, pointerEvents: "none"
+            }}>
+              <svg width="100%" height="100%" viewBox="0 0 1000 500" preserveAspectRatio="none">
+                <text x="500" y="250" fill="#4ade80" fontSize="60"
+                  textAnchor="middle" dominantBaseline="middle">
+                  GLOBAL RADAR
+                </text>
+              </svg>
+            </div>
+
+            {/* City dots */}
+            {POLLUTION_SPOTS.map((spot, i) => {
+              const top  = `${50 - (spot.lat / 90) * 48}%`
+              const left = `${50 + (spot.lng / 180) * 48}%`
+              return (
+                <div key={i}
+                  onMouseEnter={() => setHoveredSpot(spot)}
+                  onMouseLeave={() => setHoveredSpot(null)}
+                  style={{
+                    position: "absolute", top, left,
+                    width:  getMarkerSize(spot.aqi),
+                    height: getMarkerSize(spot.aqi),
+                    background: getMarkerColor(spot.aqi),
+                    borderRadius: "50%",
+                    transform: hoveredSpot === spot
+                      ? "translate(-50%, -50%) scale(1.4)"
+                      : "translate(-50%, -50%) scale(1)",
+                    boxShadow: hoveredSpot === spot
+                      ? `0 0 20px ${getMarkerColor(spot.aqi)}`
+                      : `0 0 10px ${getMarkerColor(spot.aqi)}`,
+                    cursor: "pointer",
+                    zIndex: hoveredSpot === spot ? 20 : 10,
+                    transition: "all 0.2s ease-out"
+                  }}
+                />
+              )
+            })}
+
+            {/* Hover tooltip */}
+            <AnimatePresence>
+              {hoveredSpot && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 8, scale: 0.9 }}
+                  transition={{ duration: 0.15 }}
+                  style={{
+                    position: "absolute",
+                    top: `calc(${50 - (hoveredSpot.lat / 90) * 48}% - 12px)`,
+                    left: `${50 + (hoveredSpot.lng / 180) * 48}%`,
+                    transform: "translate(-50%, -100%)",
+                    background: "rgba(4,18,8,0.96)",
+                    border: `1px solid ${getMarkerColor(hoveredSpot.aqi)}`,
+                    padding: "10px 14px",
+                    borderRadius: "10px", color: "white",
+                    fontSize: "12px", zIndex: 30,
+                    pointerEvents: "none", whiteSpace: "nowrap",
+                    boxShadow: `0 8px 32px rgba(0,0,0,0.5), 0 0 16px ${getMarkerColor(hoveredSpot.aqi)}44`,
+                    backdropFilter: "blur(10px)"
+                  }}
+                >
+                  <strong style={{ display: "block", marginBottom: "4px", fontSize: "14px" }}>
+                    {hoveredSpot.city}
+                  </strong>
+                  AQI: <span style={{ color: getMarkerColor(hoveredSpot.aqi), fontWeight: "bold" }}>
+                    {hoveredSpot.aqi}
+                  </span><br />
+                  <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "10px" }}>
+                    {hoveredSpot.level}
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
         </FrostedCard>
       </Reveal>
 
+      {/* City cards */}
       <div style={{
         display: "grid",
         gridTemplateColumns: "repeat(auto-fill, minmax(148px, 1fr))",
@@ -1208,7 +1256,9 @@ function WorldMapSection() {
                   background: getMarkerColor(spot.aqi),
                   boxShadow: `0 0 6px ${getMarkerColor(spot.aqi)}`
                 }} />
-                <span style={{ color: "white", fontSize: "13px", fontWeight: "600" }}>{spot.city}</span>
+                <span style={{ color: "white", fontSize: "13px", fontWeight: "600" }}>
+                  {spot.city}
+                </span>
               </div>
               <div style={{ color: getMarkerColor(spot.aqi), fontSize: "24px", fontWeight: "700" }}>
                 {spot.aqi}
@@ -1247,16 +1297,10 @@ export default function App() {
 
   return (
     <>
-      {/* Layer 0 — Forest + aurora (fixed) */}
+      <GlobalStyles />
       <ForestBackground scrollYProgress={scrollYProgress} />
-
-      {/* Layer 1 — Falling leaves behind content */}
       <FallingLeaves />
-
-      {/* Layer 2 — Fixed globe fades on scroll */}
       <FixedGlobe scrollYProgress={scrollYProgress} />
-
-      {/* Layer 10 — All page content */}
       <div style={{ position: "relative", zIndex: 10 }}>
         <Navbar />
         <HeroSection />
