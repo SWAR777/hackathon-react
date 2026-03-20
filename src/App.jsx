@@ -490,11 +490,11 @@ function HeroSection() {
       <motion.div
         style={{
           position: "absolute",
-          right: "calc(4% + min(42vw, 480px) + 20px)",
+          right: "5%",
           top: "50%",
           transform: "translateY(-50%)",
           zIndex: 11,
-          width: "200px"
+          width: "220px"
         }}
         initial={{ opacity: 0, x: 40 }}
         animate={{ opacity: 1, x: 0 }}
