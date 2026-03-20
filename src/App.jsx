@@ -656,7 +656,7 @@ function WorldMapSection() {
       <Reveal delay={0.16} direction="scale">
         <FrostedCard style={{ overflow: "hidden", marginBottom: "24px", position: "relative", height: "580px" }}>
           <ComposableMap
-            projectionConfig={{ scale: 210 }}
+            projectionConfig={{ scale: 210, center:[10,10] }}
             style={{ width: "100%", height: "100%", background: "#020d06" }}
           >
             <Geographies geography={GEO_URL}>
