@@ -620,7 +620,7 @@ function AnalyzerSection() {
 }
 
 // ── World Map Section ──────────────────────────────────────
-  
+
 const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
 
 function WorldMapSection() {
@@ -654,10 +654,10 @@ function WorldMapSection() {
       </Reveal>
 
       <Reveal delay={0.16} direction="scale">
-        <FrostedCard style={{ overflow: "hidden", marginBottom: "24px", position: "relative" }}>
+        <FrostedCard style={{ overflow: "hidden", marginBottom: "24px", position: "relative", height: "500px" }}>
           <ComposableMap
-            projectionConfig={{ scale: 147 }}
-            style={{ width: "100%", height: "440px", background: "#020d06" }}
+            projectionConfig={{ scale: 165 }}
+            style={{ width: "100%", height: "500px", background: "#020d06" }}
           >
             <Geographies geography={GEO_URL}>
               {({ geographies }) =>
