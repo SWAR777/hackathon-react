@@ -1147,13 +1147,19 @@ function WorldMapSection() {
         <FrostedCard style={{ overflow: "hidden", marginBottom: "24px", height: "440px", position: "relative" }}>
           <div style={{
             width: "100%", height: "100%", position: "relative",
-            background: "radial-gradient(ellipse at center, rgba(74,222,128,0.05) 0%, transparent 70%)",
-            backgroundImage: `
-              linear-gradient(to right, rgba(255,255,255,0.022) 1px, transparent 1px),
-              linear-gradient(to bottom, rgba(255,255,255,0.022) 1px, transparent 1px)
-            `,
-            backgroundSize: "4% 8%"
+            backgroundImage: `url('https://upload.wikimedia.org/wikipedia/commons/thumb/8/80/World_map_-_low_resolution.svg/2560px-World_map_-_low_resolution.svg.png')`,
+            backgroundSize: "95% auto",
+            backgroundPosition: "center center",
+            backgroundRepeat: "no-repeat",
+            backgroundColor: "#020d06",
+            filter: "none"
           }}>
+             {/* Dark tint over map so dots stand out */}
+            <div style={{
+              position: "absolute", inset: 0,
+              background: "rgba(1,9,4,0.55)",
+              pointerEvents: "none", zIndex: 1
+            }} />
             {/* GLOBAL RADAR watermark */}
             <div style={{
               position: "absolute", inset: 0, display: "flex",
