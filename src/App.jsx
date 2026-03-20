@@ -11,6 +11,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Cell
 } from "recharts"
 import * as THREE from "three"
+import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps"
 
 const API_URL = "https://YOUR-API-NAME.onrender.com"
 
@@ -619,6 +620,10 @@ function AnalyzerSection() {
 }
 
 // ── World Map Section ──────────────────────────────────────
+import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps"
+
+const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
+
 function WorldMapSection() {
   const [hoveredSpot, setHoveredSpot] = useState(null)
 
@@ -634,7 +639,13 @@ function WorldMapSection() {
 
       <Reveal delay={0.08}>
         <div style={{ display: "flex", justifyContent: "center", gap: "18px", flexWrap: "wrap", marginBottom: "24px" }}>
-          {[{ color: "#00cc44", label: "Good" }, { color: "#ffee00", label: "Moderate" }, { color: "#ffaa00", label: "Unhealthy" }, { color: "#ff6600", label: "Very Unhealthy" }, { color: "#ff2020", label: "Hazardous" }].map((item, i) => (
+          {[
+            { color: "#00cc44", label: "Good" },
+            { color: "#ffee00", label: "Moderate" },
+            { color: "#ffaa00", label: "Unhealthy" },
+            { color: "#ff6600", label: "Very Unhealthy" },
+            { color: "#ff2020", label: "Hazardous" }
+          ].map((item, i) => (
             <div key={i} style={{ display: "flex", alignItems: "center", gap: "7px" }}>
               <div style={{ width: 9, height: 9, borderRadius: "50%", background: item.color, boxShadow: `0 0 7px ${item.color}88` }} />
               <span style={{ color: "rgba(255,255,255,0.45)", fontSize: "12px" }}>{item.label}</span>
@@ -644,198 +655,62 @@ function WorldMapSection() {
       </Reveal>
 
       <Reveal delay={0.16} direction="scale">
-        <FrostedCard style={{ overflow: "hidden", marginBottom: "24px", height: "440px", position: "relative" }}>
+        <FrostedCard style={{ overflow: "hidden", marginBottom: "24px", position: "relative" }}>
+          <ComposableMap
+            projectionConfig={{ scale: 147 }}
+            style={{ width: "100%", height: "440px", background: "#020d06" }}
+          >
+            <Geographies geography={GEO_URL}>
+              {({ geographies }) =>
+                geographies.map(geo => (
+                  <Geography
+                    key={geo.rsmKey}
+                    geography={geo}
+                    style={{
+                      default: { fill: "#1a5c30", stroke: "rgba(74,222,128,0.35)", strokeWidth: 0.5, outline: "none" },
+                      hover:   { fill: "#22703a", stroke: "rgba(74,222,128,0.6)",  strokeWidth: 0.8, outline: "none" },
+                      pressed: { fill: "#1a5c30", outline: "none" }
+                    }}
+                  />
+                ))
+              }
+            </Geographies>
 
-          {/* ── SVG World Map ── */}
-          <div style={{ width: "100%", height: "100%", position: "relative", backgroundColor: "#020d06", overflow: "hidden" }}>
-            <svg
-              viewBox="0 0 1000 500"
-              style={{
-                position: "absolute", inset: 0,
-                width: "100%", height: "100%"
-              }}
-              preserveAspectRatio="xMidYMid meet"
-            >
-              {/* Ocean */}
-              <rect width="1000" height="500" fill="#031408" />
-
-              {/* Grid lines */}
-              {Array.from({ length: 19 }, (_, i) => (
-                <line key={`v${i}`} x1={i * 55.5} y1={0} x2={i * 55.5} y2={500}
-                  stroke="rgba(74,222,128,0.06)" strokeWidth={0.5} />
-              ))}
-              {Array.from({ length: 9 }, (_, i) => (
-                <line key={`h${i}`} x1={0} y1={i * 62.5} x2={1000} y2={i * 62.5}
-                  stroke="rgba(74,222,128,0.06)" strokeWidth={0.5} />
-              ))}
-
-              {/* Equator */}
-              <line x1={0} y1={250} x2={1000} y2={250}
-                stroke="rgba(74,222,128,0.2)" strokeWidth={1} strokeDasharray="6 4" />
-              {/* Prime Meridian */}
-              <line x1={500} y1={0} x2={500} y2={500}
-                stroke="rgba(74,222,128,0.1)" strokeWidth={0.5} strokeDasharray="4 4" />
-
-              {/* ── NORTH AMERICA ── */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.5)" strokeWidth={1.2}
-                d="M 95,55 L 115,48 L 145,44 L 175,46 L 195,52 L 215,62 L 228,78 L 232,95 L 228,112 L 218,125 L 225,138 L 238,148 L 248,162 L 252,178 L 244,192 L 232,204 L 218,214 L 205,222 L 192,232 L 178,248 L 162,262 L 148,272 L 135,275 L 118,268 L 105,255 L 92,240 L 82,222 L 75,205 L 70,185 L 68,165 L 70,145 L 75,125 L 78,105 L 82,85 Z" />
-
-              {/* Alaska */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.4)" strokeWidth={0.8}
-                d="M 68,55 L 85,48 L 95,52 L 95,65 L 82,72 L 68,68 Z" />
-
-              {/* Greenland */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.4)" strokeWidth={0.8}
-                d="M 188,18 L 215,14 L 238,18 L 252,28 L 255,42 L 248,55 L 232,62 L 215,62 L 198,55 L 188,42 Z" />
-
-              {/* Central America */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.4)" strokeWidth={0.8}
-                d="M 175,272 L 192,268 L 205,272 L 208,285 L 198,295 L 182,298 L 172,288 Z" />
-
-              {/* Cuba */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.3)" strokeWidth={0.6}
-                d="M 188,238 L 205,235 L 212,240 L 205,248 L 188,248 Z" />
-
-              {/* ── SOUTH AMERICA ── */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.5)" strokeWidth={1.2}
-                d="M 185,298 L 205,292 L 228,288 L 252,292 L 275,302 L 295,318 L 308,338 L 318,362 L 325,385 L 322,408 L 312,428 L 295,445 L 272,455 L 252,452 L 232,442 L 215,425 L 202,405 L 192,382 L 185,358 L 180,332 L 178,312 Z" />
-
-              {/* ── EUROPE ── */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.5)" strokeWidth={1.2}
-                d="M 425,55 L 445,48 L 468,45 L 488,48 L 505,55 L 518,65 L 528,78 L 532,92 L 528,105 L 518,115 L 505,122 L 488,126 L 468,125 L 448,120 L 432,112 L 422,100 L 418,88 L 420,72 Z" />
-
-              {/* UK */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.35)" strokeWidth={0.7}
-                d="M 418,52 L 430,46 L 438,52 L 435,65 L 422,68 L 415,60 Z" />
-
-              {/* Scandinavia */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.4)" strokeWidth={0.8}
-                d="M 448,25 L 468,18 L 488,22 L 502,35 L 498,52 L 482,58 L 462,58 L 448,48 Z" />
-
-              {/* Iceland */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.3)" strokeWidth={0.6}
-                d="M 375,38 L 392,32 L 405,36 L 408,45 L 398,52 L 380,50 Z" />
-
-              {/* ── AFRICA ── */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.5)" strokeWidth={1.2}
-                d="M 432,128 L 455,122 L 478,118 L 502,118 L 525,122 L 542,132 L 555,148 L 562,168 L 565,192 L 562,218 L 555,245 L 545,272 L 532,298 L 515,325 L 498,348 L 482,368 L 468,382 L 455,390 L 442,385 L 428,372 L 415,352 L 405,328 L 398,302 L 395,275 L 395,248 L 398,222 L 405,198 L 412,175 L 418,155 L 422,140 Z" />
-
-              {/* Madagascar */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.35)" strokeWidth={0.7}
-                d="M 568,285 L 578,278 L 585,288 L 582,312 L 572,318 L 562,308 Z" />
-
-              {/* ── MIDDLE EAST ── */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.4)" strokeWidth={0.9}
-                d="M 542,118 L 565,112 L 588,108 L 612,112 L 628,125 L 632,142 L 625,158 L 608,168 L 588,172 L 568,168 L 552,155 L 542,140 Z" />
-
-              {/* Arabia */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.4)" strokeWidth={0.9}
-                d="M 565,158 L 588,152 L 615,148 L 635,158 L 645,175 L 642,195 L 628,208 L 608,215 L 585,212 L 568,200 L 558,182 Z" />
-
-              {/* ── RUSSIA / NORTH ASIA ── */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.5)" strokeWidth={1.2}
-                d="M 505,25 L 545,18 L 598,14 L 652,12 L 708,14 L 758,18 L 805,24 L 845,32 L 875,42 L 888,55 L 882,70 L 862,82 L 835,90 L 805,96 L 772,100 L 738,102 L 705,100 L 672,96 L 638,92 L 605,92 L 572,96 L 545,100 L 525,96 L 510,85 L 502,70 Z" />
-
-              {/* ── CENTRAL / SOUTH ASIA ── */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.5)" strokeWidth={1.2}
-                d="M 605,96 L 638,92 L 672,92 L 705,96 L 728,108 L 742,122 L 748,138 L 745,155 L 735,168 L 718,178 L 698,185 L 675,188 L 652,185 L 632,175 L 615,162 L 605,148 L 598,132 L 598,115 Z" />
-
-              {/* Sri Lanka */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.3)" strokeWidth={0.5}
-                d="M 678,195 L 685,192 L 688,200 L 682,205 Z" />
-
-              {/* ── EAST ASIA ── */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.5)" strokeWidth={1.2}
-                d="M 705,78 L 738,72 L 772,68 L 805,72 L 832,82 L 852,96 L 862,112 L 858,128 L 845,142 L 828,152 L 808,158 L 785,162 L 758,160 L 732,155 L 712,145 L 698,132 L 692,118 L 695,102 Z" />
-
-              {/* Japan */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.35)" strokeWidth={0.7}
-                d="M 848,82 L 862,76 L 872,82 L 875,95 L 865,108 L 852,108 L 845,98 Z" />
-
-              {/* Taiwan */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.3)" strokeWidth={0.5}
-                d="M 808,162 L 815,158 L 818,165 L 812,170 Z" />
-
-              {/* ── SOUTHEAST ASIA ── */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.45)" strokeWidth={1}
-                d="M 728,148 L 758,142 L 785,142 L 808,148 L 825,162 L 832,178 L 828,195 L 815,205 L 798,210 L 778,208 L 758,200 L 742,188 L 732,172 Z" />
-
-              {/* Indonesia / Borneo */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.35)" strokeWidth={0.8}
-                d="M 758,212 L 785,208 L 812,210 L 828,218 L 832,228 L 822,238 L 802,242 L 778,240 L 758,232 L 748,222 Z" />
-
-              {/* Philippines */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.3)" strokeWidth={0.6}
-                d="M 828,162 L 842,158 L 850,168 L 845,178 L 832,178 Z" />
-
-              {/* ── AUSTRALIA ── */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.5)" strokeWidth={1.2}
-                d="M 758,305 L 788,298 L 818,295 L 848,298 L 872,308 L 892,322 L 908,340 L 918,362 L 922,385 L 918,408 L 905,428 L 885,442 L 860,450 L 832,452 L 805,448 L 778,438 L 755,420 L 738,398 L 728,372 L 726,348 L 730,325 Z" />
-
-              {/* New Zealand */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.35)" strokeWidth={0.7}
-                d="M 928,395 L 942,385 L 952,392 L 955,408 L 945,418 L 932,415 Z" />
-
-              {/* New Guinea */}
-              <path fill="#1a5c30" stroke="rgba(74,222,128,0.35)" strokeWidth={0.7}
-                d="M 838,248 L 862,242 L 885,245 L 898,258 L 892,268 L 868,272 L 845,268 L 835,258 Z" />
-            </svg>
-            {/* GLOBAL RADAR watermark */}
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.03, pointerEvents: "none", userSelect: "none", zIndex: 2 }}>
-              <span style={{ fontSize: "52px", fontWeight: "bold", color: "#4ade80", letterSpacing: "10px" }}>GLOBAL RADAR</span>
-            </div>
-
-            {/* City dots */}
-            {POLLUTION_SPOTS.map((spot, i) => {
-              const top  = `${50 - (spot.lat / 90) * 48}%`
-              const left = `${50 + (spot.lng / 180) * 48}%`
-              const isHovered = hoveredSpot === spot
-              return (
-                <div key={i}
+            {POLLUTION_SPOTS.map((spot, i) => (
+              <Marker key={i} coordinates={[spot.lng, spot.lat]}>
+                <circle
+                  r={getMarkerSize(spot.aqi) / 2}
+                  fill={getMarkerColor(spot.aqi)}
+                  style={{
+                    filter: `drop-shadow(0 0 6px ${getMarkerColor(spot.aqi)})`,
+                    cursor: "pointer",
+                    transition: "r 0.2s"
+                  }}
                   onMouseEnter={() => setHoveredSpot(spot)}
                   onMouseLeave={() => setHoveredSpot(null)}
-                  style={{
-                    position: "absolute", top, left,
-                    width: getMarkerSize(spot.aqi), height: getMarkerSize(spot.aqi),
-                    background: getMarkerColor(spot.aqi), borderRadius: "50%",
-                    transform: `translate(-50%, -50%) scale(${isHovered ? 1.5 : 1})`,
-                    boxShadow: isHovered
-                      ? `0 0 22px ${getMarkerColor(spot.aqi)}, 0 0 44px ${getMarkerColor(spot.aqi)}44`
-                      : `0 0 10px ${getMarkerColor(spot.aqi)}88`,
-                    cursor: "pointer", zIndex: isHovered ? 20 : 10,
-                    transition: "all 0.18s ease-out"
-                  }} />
-              )
-            })}
-
-            {/* Hover tooltip */}
-            <AnimatePresence>
-              {hoveredSpot && (
-                <motion.div
-                  initial={{ opacity: 0, y: 6, scale: 0.92 }}
-                  animate={{ opacity: 1, y: 0, scale: 1 }}
-                  exit={{ opacity: 0, y: 6, scale: 0.92 }}
-                  transition={{ duration: 0.14 }}
-                  style={{
-                    position: "absolute",
-                    top:  `calc(${50 - (hoveredSpot.lat / 90) * 48}% - 14px)`,
-                    left: `${50 + (hoveredSpot.lng / 180) * 48}%`,
-                    transform: "translate(-50%, -100%)",
-                    background: "rgba(4,18,8,0.97)",
-                    border: `1px solid ${getMarkerColor(hoveredSpot.aqi)}`,
-                    padding: "10px 14px", borderRadius: "10px",
-                    color: "white", fontSize: "12px", zIndex: 30,
-                    pointerEvents: "none", whiteSpace: "nowrap",
-                    boxShadow: `0 8px 28px rgba(0,0,0,0.55), 0 0 14px ${getMarkerColor(hoveredSpot.aqi)}33`,
-                    backdropFilter: "blur(12px)"
-                  }}>
-                  <strong style={{ display: "block", marginBottom: "3px", fontSize: "13px" }}>{hoveredSpot.city}</strong>
-                  AQI: <span style={{ color: getMarkerColor(hoveredSpot.aqi), fontWeight: "bold" }}>{hoveredSpot.aqi}</span><br />
-                  <span style={{ color: "rgba(255,255,255,0.5)", fontSize: "10px" }}>{hoveredSpot.level}</span>
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+                />
+                {hoveredSpot === spot && (
+                  <foreignObject x={-70} y={-75} width={140} height={70}>
+                    <div style={{
+                      background: "rgba(4,18,8,0.97)",
+                      border: `1px solid ${getMarkerColor(spot.aqi)}`,
+                      borderRadius: "8px", padding: "8px 12px",
+                      color: "white", fontSize: "11px",
+                      boxShadow: `0 4px 20px rgba(0,0,0,0.5), 0 0 12px ${getMarkerColor(spot.aqi)}33`
+                    }}>
+                      <strong style={{ display: "block", marginBottom: "2px", fontSize: "12px" }}>
+                        {spot.city}
+                      </strong>
+                      AQI: <span style={{ color: getMarkerColor(spot.aqi), fontWeight: "bold" }}>{spot.aqi}</span>
+                      <span style={{ color: "rgba(255,255,255,0.5)", display: "block", fontSize: "10px" }}>
+                        {spot.level}
+                      </span>
+                    </div>
+                  </foreignObject>
+                )}
+              </Marker>
+            ))}
+          </ComposableMap>
         </FrostedCard>
       </Reveal>
 
