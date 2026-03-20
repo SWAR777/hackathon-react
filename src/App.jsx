@@ -12,6 +12,8 @@ import {
 } from "recharts"
 import * as THREE from "three"
 import { ComposableMap, Geographies, Geography, Marker } from "react-simple-maps"
+import ProfileCard from "./ProfileCard"
+import myPhoto from "./avatar.jpg"
 
 const API_URL = "https://YOUR-API-NAME.onrender.com"
 
@@ -484,6 +486,33 @@ function HeroSection() {
           </motion.button>
         </motion.div>
       </div>
+      {/* Profile Card — floats on right side alongside globe */}
+      <motion.div
+        style={{
+          position: "absolute",
+          right: "calc(4% + min(42vw, 480px) + 20px)",
+          top: "50%",
+          transform: "translateY(-50%)",
+          zIndex: 11,
+          width: "200px"
+        }}
+        initial={{ opacity: 0, x: 40 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ delay: 1.4, duration: 0.7 }}
+      >
+        <ProfileCard
+          avatarUrl={myPhoto}
+          miniAvatarUrl={myPhoto}
+          name="Swar Dave"
+          title="Computer Engineer"
+          handle="eco@gmail.com"
+          status="🟢 Live"
+          contactText="Analyze"
+          behindGlowColor="rgba(74, 222, 128, 0.6)"
+          innerGradient="linear-gradient(145deg, rgba(74,222,128,0.2) 0%, rgba(34,197,94,0.1) 100%)"
+          onContactClick={() => document.getElementById("analyzer")?.scrollIntoView({ behavior: "smooth" })}
+        />
+      </motion.div>
       <motion.div style={{ position: "absolute", bottom: "28px", left: "50%", translateX: "-50%", zIndex: 10 }}
         animate={{ y: [0, 7, 0] }} transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}>
         <div style={{ width: "22px", height: "36px", border: "1px solid rgba(255,255,255,0.16)", borderRadius: "11px", display: "flex", justifyContent: "center", paddingTop: "5px" }}>
