@@ -627,7 +627,7 @@ const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json"
 function WorldMapSection() {
   const [hoveredSpot, setHoveredSpot] = useState(null)
 
-  return (
+  return(
     <section id="map" style={{ minHeight: "100vh", padding: "100px 40px 80px", position: "relative", zIndex: 10 }}>
       <Reveal>
         <div style={{ textAlign: "center", marginBottom: "44px" }}>
