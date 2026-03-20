@@ -12,7 +12,7 @@ import {
 } from "recharts"
 import * as THREE from "three"
 
-const API_URL = "https://hackathon-practice-w99t.onrender.com"
+const API_URL = "https://YOUR-API-NAME.onrender.com"
 
 const POLLUTION_SPOTS = [
   { city: "Delhi",     lat: 28.6,  lng: 77.2,   aqi: 287, level: "Hazardous" },
@@ -692,10 +692,10 @@ function WorldMapSection() {
             </svg>
 
             {/* Dark overlay for contrast */}
-            <div style={{ position: "absolute", inset: 0, background: "rgba(1,9,4,0.42)", pointerEvents: "none", zIndex: 1 }} />
+        
 
             {/* GLOBAL RADAR watermark */}
-            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.05, pointerEvents: "none", userSelect: "none", zIndex: 2 }}>
+            <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", opacity: 0.7, pointerEvents: "none", userSelect: "none", zIndex: 2 }}>
               <span style={{ fontSize: "52px", fontWeight: "bold", color: "#4ade80", letterSpacing: "10px" }}>GLOBAL RADAR</span>
             </div>
 
